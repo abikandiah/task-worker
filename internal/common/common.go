@@ -1,8 +1,12 @@
 package common
 
-type Description struct {
+type Identity struct {
 	ID          string
-	Version     string
 	Name        string
 	Description string
+}
+
+type IdentityVersion struct {
+	Identity
+	Version string
 }

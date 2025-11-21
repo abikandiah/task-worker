@@ -1,25 +1,43 @@
 package worker
 
-import "github.com/abikandiah/task-worker/internal/common"
+import (
+	"errors"
+	"time"
+
+	"github.com/abikandiah/task-worker/internal/common"
+)
 
 type Task struct {
-	common.Description
+	common.IdentityVersion
 }
 
-func (t Task) Run() any {
-	return "Not implemented!"
+func (t Task) Run() (any, error) {
+	return nil, errors.New("not implemented")
 }
 
 type TaskRun struct {
-	Name        string
+	common.Identity
+	JobID       string
 	TaskID      string
 	TaskVersion string
-	Status      string
 	Options     map[string]any
+	Status      string
+	Progress    float32
+	Result      any
+	StartDate   time.Time
+	EndDate     time.Time
 }
 
-type TaskJob struct {
-	common.Description
-	Status string
-	Tasks  []TaskRun
+type Job struct {
+	common.Identity
+	Status        string
+	Progress      float32
+	SubmittedDate time.Time
+	StartDate     time.Time
+	EndDate       time.Time
+}
+
+type JobRequest struct {
+	common.Identity
+	TaskIDs []string
 }

@@ -4,8 +4,7 @@ import (
 	"log"
 
 	"github.com/abikandiah/task-worker/internal/container"
-	"github.com/abikandiah/task-worker/internal/core/port"
-	"github.com/abikandiah/task-worker/internal/task"
+	"github.com/abikandiah/task-worker/internal/service"
 )
 
 // Entry point for HTTP server
@@ -15,10 +14,10 @@ func main() {
 		log.Fatalf("API server startup failed: %v", err)
 	}
 
-	taskFactory := task.NewTaskFactory()
-	taskFactory.Register("email_send_task", func(params any) (port.Task, error) {
-		return task.NewEmailSendTask(params, &task.EmailDependencies{
-			Logger: deps.Logger,
-		})
-	})
+	taskFactory := container.InitTaskFactory(deps)
+
+	taskExecutor := &service.TaskExecutor{
+		Logger:      deps.Logger,
+		TaskFactory: *taskFactory,
+	}
 }

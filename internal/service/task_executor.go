@@ -8,18 +8,13 @@ import (
 
 	"github.com/abikandiah/task-worker/internal/core/domain"
 	"github.com/abikandiah/task-worker/internal/core/port"
+	"github.com/abikandiah/task-worker/internal/task"
 )
 
 type TaskExecutor struct {
-	Repository port.ExecutorRepository
-	Logger     *slog.Logger
-}
-
-func NewTaskExecutor(repo port.ExecutorRepository, log *slog.Logger) *TaskExecutor {
-	return &TaskExecutor{
-		Repository: repo,
-		Logger:     log,
-	}
+	TaskFactory task.TaskFactory
+	Repository  port.ExecutorRepository
+	Logger      *slog.Logger
 }
 
 type internalKey string
@@ -27,6 +22,7 @@ type internalKey string
 const (
 	jobIDKey    internalKey = "job_id"
 	taskIDKey   internalKey = "task_run_id"
+	taskNameKey internalKey = "task_name"
 	configIDKey internalKey = "config_id"
 )
 
@@ -82,13 +78,13 @@ func (exec *TaskExecutor) ExecuteTaskRun(ctx context.Context, taskRun domain.Tas
 	ctx = context.WithValue(ctx, taskIDKey, taskRun.ID)
 
 	// Get core task object with execution logic
-	task, err := exec.Repository.GetTask(ctx, taskRun.TaskID, taskRun.TaskVersion)
+	task, err := exec.TaskFactory.CreateTask(taskRun.TaskName, taskRun.Params)
 	if err != nil {
-		exec.Logger.ErrorContext(ctx, "Failed to fetch task", slog.String(string(taskIDKey), taskRun.TaskID), slog.String(string(taskVersionKey), taskRun.TaskVersion), slog.Any("error", err))
-		return fmt.Errorf("failed to fetch task %s: %w", taskRun.TaskID, err)
+		exec.Logger.ErrorContext(ctx, "Failed to fetch task", slog.String(string(taskNameKey), taskRun.TaskName), slog.Any("error", err))
+		return fmt.Errorf("failed to fetch task %s: %w", taskRun.TaskName, err)
 	}
 
-	task.Run()
+	task.Execute(ctx)
 
 	return nil
 }

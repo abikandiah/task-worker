@@ -2,12 +2,10 @@ package task
 
 import (
 	"fmt"
-
-	"github.com/abikandiah/task-worker/internal/core/port"
 )
 
 type (
-	TaskFactoryConstructor func(params any) (port.Task, error)
+	TaskFactoryConstructor func(params any) (Task, error)
 	TaskFactory            struct {
 		constructors map[string]TaskFactoryConstructor
 	}
@@ -27,7 +25,7 @@ func (factory *TaskFactory) Register(name string, constructor TaskFactoryConstru
 	factory.constructors[name] = constructor
 }
 
-func (factory *TaskFactory) CreateTask(name string, params any) (port.Task, error) {
+func (factory *TaskFactory) CreateTask(name string, params any) (Task, error) {
 	constructor, ok := factory.constructors[name]
 	if !ok {
 		return nil, fmt.Errorf("task with name '%s' is not registered", name)

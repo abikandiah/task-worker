@@ -7,17 +7,16 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/core/domain"
+	"github.com/abikandiah/task-worker/internal/core/port"
 )
 
-type Executor struct {
-	ConfigID   string
-	Repository domain.ExecutorRepository
+type TaskExecutor struct {
+	Repository port.ExecutorRepository
 	Logger     *slog.Logger
 }
 
-func NewExecutor(configID string, repo domain.ExecutorRepository, log *slog.Logger) *Executor {
-	return &Executor{
-		ConfigID:   configID,
+func NewTaskExecutor(repo port.ExecutorRepository, log *slog.Logger) *TaskExecutor {
+	return &TaskExecutor{
 		Repository: repo,
 		Logger:     log,
 	}
@@ -26,14 +25,20 @@ func NewExecutor(configID string, repo domain.ExecutorRepository, log *slog.Logg
 type internalKey string
 
 const (
-	jobIDKey       internalKey = "job_id"
-	taskIDKey      internalKey = "task_run_id"
-	taskVersionKey internalKey = "task_version"
+	jobIDKey    internalKey = "job_id"
+	taskIDKey   internalKey = "task_run_id"
+	configIDKey internalKey = "config_id"
 )
 
-func (exec Executor) ExecuteJob(ctx context.Context, jobID string) error {
+func (exec *TaskExecutor) ExecuteJob(ctx context.Context, configID string, jobID string) error {
 	ctx = context.WithValue(ctx, jobIDKey, jobID)
-	exec.Logger.InfoContext(ctx, "Starting job execution")
+
+	// Get Config
+	config, err := exec.Repository.GetExecutorConfig(ctx, configID)
+	if err != nil {
+		exec.Logger.ErrorContext(ctx, "Failed to fetch config", slog.String(string(configIDKey), configID), slog.Any("error", err))
+		return fmt.Errorf("failed to fetch config %s: %w", configID, err)
+	}
 
 	// Get Job and taskRuns
 	job, err := exec.Repository.GetJob(ctx, jobID)
@@ -49,8 +54,12 @@ func (exec Executor) ExecuteJob(ctx context.Context, jobID string) error {
 	}
 
 	// Execute job
+	exec.Logger.InfoContext(ctx, "Starting job execution")
 	job.StartDate = time.Now()
 	job.Status = "RUNNING"
+
+	// Start a seperate thread for periodically saving the job and taskRun - task will update job and taskRun objects
+
 	_, err = exec.Repository.SaveJob(ctx, *job)
 	if err != nil {
 		exec.Logger.ErrorContext(ctx, "Failed to save job", slog.String(string(jobIDKey), jobID), slog.Any("error", err))
@@ -69,7 +78,7 @@ func (exec Executor) ExecuteJob(ctx context.Context, jobID string) error {
 	return nil
 }
 
-func (exec Executor) ExecuteTaskRun(ctx context.Context, taskRun domain.TaskRun) error {
+func (exec *TaskExecutor) ExecuteTaskRun(ctx context.Context, taskRun domain.TaskRun) error {
 	ctx = context.WithValue(ctx, taskIDKey, taskRun.ID)
 
 	// Get core task object with execution logic

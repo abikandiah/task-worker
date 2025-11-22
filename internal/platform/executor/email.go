@@ -4,32 +4,36 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-)
 
-type EmailParams struct {
-	Recipient string
-}
+	"github.com/abikandiah/task-worker/internal/domain"
+	"github.com/abikandiah/task-worker/internal/domain/task"
+)
 
 type EmailDependencies struct {
 	Logger *slog.Logger
 }
 
 type EmailSendTask struct {
-	Params *EmailParams
+	Params *task.EmailSendParams
 	Deps   *EmailDependencies
+}
+
+func EmailSendConstructor(params any, deps *domain.GlobalDependencies) (task.Task, error) {
+	taskParams, ok := params.(task.EmailSendParams)
+	if !ok {
+		return nil, fmt.Errorf("invalid params passed to EmailSend task factory: %T", params)
+	}
+
+	taskDeps := &EmailDependencies{
+		Logger: deps.Logger,
+	}
+
+	return &EmailSendTask{
+		Params: &taskParams,
+		Deps:   taskDeps,
+	}, nil
 }
 
 func (task *EmailSendTask) Execute(ctx context.Context) error {
 	return nil
-}
-
-func NewEmailSendTask(params any, deps *EmailDependencies) (*EmailSendTask, error) {
-	emailParams, ok := params.(EmailParams)
-	if !ok {
-		return nil, fmt.Errorf("invalid params passed to EmailTask factory: %T", params)
-	}
-	return &EmailSendTask{
-		Params: &emailParams,
-		Deps:   deps,
-	}, nil
 }

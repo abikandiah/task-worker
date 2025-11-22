@@ -2,18 +2,22 @@ package task
 
 import (
 	"fmt"
+
+	"github.com/abikandiah/task-worker/internal/domain"
 )
 
 type (
-	TaskFactoryConstructor func(params any) (Task, error)
+	TaskFactoryConstructor func(params any, deps *domain.GlobalDependencies) (Task, error)
 	TaskFactory            struct {
 		constructors map[string]TaskFactoryConstructor
+		deps         *domain.GlobalDependencies
 	}
 )
 
-func NewTaskFactory() *TaskFactory {
+func NewTaskFactory(deps *domain.GlobalDependencies) *TaskFactory {
 	return &TaskFactory{
 		constructors: make(map[string]TaskFactoryConstructor),
+		deps:         deps,
 	}
 }
 
@@ -31,7 +35,7 @@ func (factory *TaskFactory) CreateTask(name string, params any) (Task, error) {
 		return nil, fmt.Errorf("task with name '%s' is not registered", name)
 	}
 
-	return constructor(params)
+	return constructor(params, factory.deps)
 }
 
 func (factory *TaskFactory) GetTaskNames() []string {

@@ -1,11 +1,7 @@
 package container
 
-import "log/slog"
+import "github.com/abikandiah/task-worker/internal/domain"
 
-type GlobalDependencies struct {
-	Logger *slog.Logger
-}
-
-func NewGlobalDependencies() (*GlobalDependencies, error) {
-	return &GlobalDependencies{}, nil
+func NewGlobalDependencies() (*domain.GlobalDependencies, error) {
+	return &domain.GlobalDependencies{}, nil
 }

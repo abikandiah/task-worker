@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/abikandiah/task-worker/internal/container"
-	"github.com/abikandiah/task-worker/internal/service"
+	"github.com/abikandiah/task-worker/internal/platform/executor"
 )
 
 // Entry point for HTTP server
@@ -14,10 +14,5 @@ func main() {
 		log.Fatalf("API server startup failed: %v", err)
 	}
 
-	taskFactory := container.InitTaskFactory(deps)
-
-	taskExecutor := &service.TaskExecutor{
-		Logger:      deps.Logger,
-		TaskFactory: *taskFactory,
-	}
+	taskFactory := executor.InitTaskFactory(deps)
 }

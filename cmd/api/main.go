@@ -14,5 +14,5 @@ func main() {
 		log.Fatalf("API server startup failed: %v", err)
 	}
 
-	taskFactory := executor.InitTaskFactory(deps)
+	executor.InitTaskFactory(deps)
 }

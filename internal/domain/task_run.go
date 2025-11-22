@@ -11,8 +11,8 @@ type TaskRun struct {
 	JobID     uuid.UUID
 	TaskName  string
 	Params    any
-	DependOn  []int
-	State    string
+	Parallel  bool
+	State     ExecutionState
 	Progress  float32
 	Result    any
 	StartDate time.Time

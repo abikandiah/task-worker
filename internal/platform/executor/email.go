@@ -34,6 +34,6 @@ func EmailSendConstructor(params any, deps *domain.GlobalDependencies) (task.Tas
 	}, nil
 }
 
-func (task *EmailSendTask) Execute(ctx context.Context) error {
-	return nil
+func (task *EmailSendTask) Execute(ctx context.Context) (any, error) {
+	return nil, nil
 }

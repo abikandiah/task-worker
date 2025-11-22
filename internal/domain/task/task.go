@@ -5,5 +5,5 @@ import (
 )
 
 type Task interface {
-	Execute(ctx context.Context) error
+	Execute(ctx context.Context) (any, error)
 }

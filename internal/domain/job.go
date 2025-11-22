@@ -10,7 +10,7 @@ import (
 type Job struct {
 	Identity
 	ConfigID   uuid.UUID
-	State      JobState
+	State      ExecutionState
 	Progress   float32
 	SubmitDate time.Time
 	StartDate  time.Time
@@ -31,10 +31,10 @@ type JobConfig struct {
 }
 
 // State
-type JobState int
+type ExecutionState int
 
 const (
-	_ JobState = iota
+	_ ExecutionState = iota
 
 	StatePending
 	StateRunning
@@ -46,7 +46,7 @@ const (
 	StateRejected
 )
 
-var jobStateStrings = map[JobState]string{
+var executionStateStrings = map[ExecutionState]string{
 	StatePending:  "PENDING",
 	StateRunning:  "RUNNING",
 	StateFinished: "FINISHED",
@@ -57,9 +57,9 @@ var jobStateStrings = map[JobState]string{
 	StateRejected: "REJECTED",
 }
 
-func (s JobState) String() string {
-	if str, ok := jobStateStrings[s]; ok {
+func (s ExecutionState) String() string {
+	if str, ok := executionStateStrings[s]; ok {
 		return str
 	}
-	return fmt.Sprintf("JobState(%d)", s)
+	return fmt.Sprintf("ExecutionState(%d)", s)
 }

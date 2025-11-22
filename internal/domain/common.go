@@ -1,7 +1,15 @@
 package domain
 
+import (
+	"github.com/google/uuid"
+)
+
 type Identity struct {
-	ID          string
+	IdentitySubmission
+	ID uuid.UUID
+}
+
+type IdentitySubmission struct {
 	Name        string
 	Description string
 }

@@ -6,25 +6,22 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/abikandiah/task-worker/internal/core/domain"
-	"github.com/abikandiah/task-worker/internal/core/port"
-	"github.com/abikandiah/task-worker/internal/task"
+	"github.com/abikandiah/task-worker/internal/domain"
+	"github.com/abikandiah/task-worker/internal/domain/task"
+	"github.com/abikandiah/task-worker/internal/repository"
 )
 
 type TaskExecutor struct {
 	TaskFactory task.TaskFactory
-	Repository  port.ExecutorRepository
+	Repository  ExecutorRepository
 	Logger      *slog.Logger
 }
 
-type internalKey string
-
-const (
-	jobIDKey    internalKey = "job_id"
-	taskIDKey   internalKey = "task_run_id"
-	taskNameKey internalKey = "task_name"
-	configIDKey internalKey = "config_id"
-)
+type ExecutorRepository struct {
+	repository.JobRepository
+	repository.ExecutorConfigRepository
+	repository.TaskRunRepository
+}
 
 func (exec *TaskExecutor) ExecuteJob(ctx context.Context, configID string, jobID string) error {
 	ctx = context.WithValue(ctx, jobIDKey, jobID)
@@ -52,7 +49,7 @@ func (exec *TaskExecutor) ExecuteJob(ctx context.Context, configID string, jobID
 	// Execute job
 	exec.Logger.InfoContext(ctx, "Starting job execution")
 	job.StartDate = time.Now()
-	job.Status = "RUNNING"
+	job.State = "RUNNING"
 
 	// Start a seperate thread for periodically saving the job and taskRun - task will update job and taskRun objects
 

@@ -3,5 +3,9 @@ package container
 import "github.com/abikandiah/task-worker/internal/domain"
 
 func NewGlobalDependencies() (*domain.GlobalDependencies, error) {
-	return &domain.GlobalDependencies{}, nil
+	logger := setupLogger()
+
+	return &domain.GlobalDependencies{
+		Logger: logger,
+	}, nil
 }

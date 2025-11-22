@@ -1,14 +1,18 @@
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type TaskRun struct {
 	Identity
-	JobID     string
+	JobID     uuid.UUID
 	TaskName  string
 	Params    any
 	DependOn  []int
-	Status    string
+	State    string
 	Progress  float32
 	Result    any
 	StartDate time.Time

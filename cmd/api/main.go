@@ -3,16 +3,17 @@ package main
 import (
 	"log"
 
-	"github.com/abikandiah/task-worker/internal/container"
-	"github.com/abikandiah/task-worker/internal/platform/executor"
+	"github.com/abikandiah/task-worker/internal/factory"
+	"github.com/abikandiah/task-worker/internal/service"
 )
 
 // Entry point for HTTP server
 func main() {
-	deps, err := container.NewGlobalDependencies()
+	deps, err := factory.NewGlobalDependencies()
 	if err != nil {
-		log.Fatalf("API server startup failed: %v", err)
+		log.Fatalf("Failed to initialize dependencies: %v", err)
 	}
 
-	executor.InitTaskFactory(deps)
+	taskFactory := factory.InitTaskFactory(deps)
+	jobService := service.NewJobService(deps, taskFactory)
 }

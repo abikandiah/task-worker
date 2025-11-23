@@ -7,14 +7,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/abikandiah/task-worker/config"
 	"github.com/abikandiah/task-worker/internal/domain"
-	"github.com/abikandiah/task-worker/internal/domain/task"
+	"github.com/abikandiah/task-worker/internal/factory"
 	"github.com/abikandiah/task-worker/internal/repository"
 	"github.com/google/uuid"
 )
 
 type JobService struct {
-	JobServiceDependencies
+	*JobServiceDependencies
 	jobCh  chan uuid.UUID
 	taskCh chan TaskRunRequest
 	cancel context.CancelFunc
@@ -27,26 +28,34 @@ type JobRepository interface {
 }
 
 type JobServiceDependencies struct {
-	taskFactory *task.TaskFactory
+	cfg         config.WorkerConfig
+	taskFactory *factory.TaskFactory
 	repository  JobRepository
 	logger      *slog.Logger
 }
 
-func NewJobService(deps *JobServiceDependencies, capacity int, maxJobWorkers int, maxTaskWorkers int) *JobService {
+func NewJobService(deps *domain.GlobalDependencies, taskFactory *factory.TaskFactory) *JobService {
 	ctx, cancel := context.WithCancel(context.Background())
 
+	workerConfig := deps.Config.Worker
+	jobServiceDeps := &JobServiceDependencies{
+		cfg:         workerConfig,
+		logger:      deps.Logger,
+		taskFactory: taskFactory,
+	}
+
 	service := &JobService{
-		JobServiceDependencies: *deps,
-		jobCh:                  make(chan uuid.UUID, capacity),
+		JobServiceDependencies: jobServiceDeps,
+		jobCh:                  make(chan uuid.UUID, workerConfig.JobBufferCapacity),
 		taskCh:                 make(chan TaskRunRequest),
 		wg:                     new(sync.WaitGroup),
 		cancel:                 cancel,
 	}
 
 	// Start Task Workers
-	for i := 0; i < maxTaskWorkers; i++ {
+	for i := 0; i < workerConfig.TaskWorkerCount; i++ {
 		worker := &TaskWorker{
-			JobServiceDependencies: deps,
+			JobServiceDependencies: jobServiceDeps,
 			taskCh:                 service.taskCh,
 		}
 
@@ -58,9 +67,9 @@ func NewJobService(deps *JobServiceDependencies, capacity int, maxJobWorkers int
 	}
 
 	// Start Job Workers
-	for i := 0; i < maxJobWorkers; i++ {
+	for i := 0; i < workerConfig.JobWorkerCount; i++ {
 		worker := &JobWorker{
-			JobServiceDependencies: deps,
+			JobServiceDependencies: jobServiceDeps,
 			jobCh:                  service.jobCh,
 			taskCh:                 service.taskCh,
 		}

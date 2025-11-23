@@ -1,4 +1,4 @@
-package executor
+package task
 
 import (
 	"context"
@@ -7,20 +7,23 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
-	"github.com/abikandiah/task-worker/internal/domain/task"
 )
+
+type ChatParams struct {
+	Message string
+}
 
 type ChatTaskDependencies struct {
 	Logger *slog.Logger
 }
 
 type ChatTask struct {
-	Params *task.ChatParams
+	Params *ChatParams
 	Deps   *ChatTaskDependencies
 }
 
-func ChatConstructor(params any, deps *domain.GlobalDependencies) (task.Task, error) {
-	taskParams, ok := params.(task.ChatParams)
+func ChatConstructor(params any, deps *domain.GlobalDependencies) (Task, error) {
+	taskParams, ok := params.(ChatParams)
 	if !ok {
 		return nil, fmt.Errorf("invalid params passed to ChatTask factory: %T", params)
 	}

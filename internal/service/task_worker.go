@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
+	"github.com/abikandiah/task-worker/internal/factory"
 )
 
 type TaskRunRequest struct {
@@ -72,7 +73,7 @@ func (worker *TaskWorker) ExecuteTask(ctx context.Context, taskRun *domain.TaskR
 		worker.repository.SaveTaskRun(ctx, *taskRun)
 	}()
 
-	task, err := worker.taskFactory.CreateTask(taskRun.TaskName, taskRun.Params)
+	task, err := factory.CreateTask(worker.taskFactory, taskRun.TaskName, taskRun.Params)
 	if err != nil {
 		worker.logger.ErrorContext(ctx, "Failed to create task", slog.Any("error", err))
 		return fmt.Errorf("failed to create task %s: %w", taskRun.TaskName, err)

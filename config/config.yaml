@@ -1,0 +1,112 @@
+# Application Configuration - Production Environment
+# Last Updated: 2025-011-22
+
+# Server Configuration
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: "30s"
+  write_timeout: "30s"
+  shutdown_timeout: "30s"
+
+# Database Configuration
+database:
+  host: "postgres-primary.internal"
+  port: 5432
+  user: "app_user"
+  # Password should be set via environment variable DB_PASSWORD
+  password: ""
+  db_name: "production_db"
+  max_open_conns: 50
+  max_idle_conns: 10
+  conn_max_lifetime: "5m"
+  ssl_mode: "require"
+
+# Logger Configuration
+logger:
+  level: "INFO"
+  environment: "production"
+  service_name: "my-service"
+  version: "v1.0.0"
+
+# Worker Configuration
+worker:
+  job_worker_count: 2
+  task_worker_count: 4
+  job_buffer_capacity: 128
+
+# Additional Production Settings
+# (You can extend the config struct to include these)
+
+# Cache Configuration
+cache:
+  redis_host: "redis-cluster.internal"
+  redis_port: 6379
+  redis_db: 0
+  redis_password: ""  # Set via REDIS_PASSWORD env var
+  ttl: "1h"
+  max_retries: 3
+
+# Rate Limiting
+rate_limit:
+  enabled: true
+  requests_per_second: 100
+  burst: 200
+
+# Monitoring & Health Checks
+monitoring:
+  metrics_enabled: true
+  metrics_port: 9090
+  health_check_path: "/health"
+  readiness_check_path: "/ready"
+
+# Feature Flags
+features:
+  enable_new_api: false
+  enable_experimental_features: false
+  maintenance_mode: false
+
+# Security
+security:
+  cors_enabled: true
+  cors_origins:
+    - "https://app.example.com"
+    - "https://www.example.com"
+  jwt_secret: ""  # Set via JWT_SECRET env var
+  jwt_expiry: "24h"
+  api_key_header: "X-API-Key"
+
+# External Services
+external_services:
+  payment_api:
+    base_url: "https://api.payment-provider.com"
+    timeout: "10s"
+    retry_count: 3
+  email_service:
+    base_url: "https://api.email-provider.com"
+    timeout: "5s"
+    from_address: "noreply@example.com"
+
+# Queue Configuration
+queue:
+  provider: "rabbitmq"
+  host: "rabbitmq.internal"
+  port: 5672
+  vhost: "/production"
+  username: "app_queue_user"
+  password: ""  # Set via QUEUE_PASSWORD env var
+  prefetch_count: 10
+
+# Storage Configuration
+storage:
+  provider: "s3"
+  bucket: "production-app-storage"
+  region: "us-east-1"
+  # Access credentials via IAM role or environment variables
+
+# Observability
+observability:
+  tracing_enabled: true
+  tracing_endpoint: "https://tracing.internal:4318"
+  sampling_rate: 0.1
+  log_sampling_rate: 1.0

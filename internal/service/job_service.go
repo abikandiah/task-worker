@@ -97,8 +97,8 @@ func (service *JobService) SubmitJob(ctx context.Context, submission *domain.Job
 	ctx = context.WithValue(ctx, LKeys.JobID, job.ID)
 
 	// Populate JobID
-	for _, taskRun := range submission.TaskRuns {
-		taskRun.JobID = job.ID
+	for i := range submission.TaskRuns {
+		submission.TaskRuns[i].JobID = job.ID
 	}
 	service.repository.SaveTaskRuns(ctx, submission.TaskRuns)
 	if err != nil {

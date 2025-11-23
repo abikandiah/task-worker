@@ -10,7 +10,6 @@ import (
 	"github.com/abikandiah/task-worker/config"
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/factory"
-	"github.com/abikandiah/task-worker/internal/repository"
 	"github.com/google/uuid"
 )
 
@@ -23,8 +22,8 @@ type JobService struct {
 }
 
 type JobRepository interface {
-	repository.JobRepository
-	repository.TaskRunRepository
+	domain.JobRepository
+	domain.TaskRunRepository
 }
 
 type JobServiceDependencies struct {

@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"fmt"
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,36 +30,10 @@ type JobConfig struct {
 	MaxParallelTasks    int
 }
 
-// State
-type ExecutionState int
+type JobRepository interface {
+	GetJob(ctx context.Context, jobID uuid.UUID) (*Job, error)
+	SaveJob(ctx context.Context, job Job) (*Job, error)
 
-const (
-	_ ExecutionState = iota
-
-	StatePending
-	StateRunning
-	StateFinished
-	StateStopped
-	StatePaused
-	StateWarning
-	StateError
-	StateRejected
-)
-
-var executionStateStrings = map[ExecutionState]string{
-	StatePending:  "PENDING",
-	StateRunning:  "RUNNING",
-	StateFinished: "FINISHED",
-	StateStopped:  "STOPPED",
-	StatePaused:   "PAUSED",
-	StateWarning:  "WARNING",
-	StateError:    "ERROR",
-	StateRejected: "REJECTED",
-}
-
-func (s ExecutionState) String() string {
-	if str, ok := executionStateStrings[s]; ok {
-		return str
-	}
-	return fmt.Sprintf("ExecutionState(%d)", s)
+	GetJobConfig(ctx context.Context, configID uuid.UUID) (*JobConfig, error)
+	SaveJobConfig(ctx context.Context, config JobConfig) (*JobConfig, error)
 }

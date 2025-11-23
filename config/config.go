@@ -271,19 +271,3 @@ func MustLoadFromFile(path string) *Config {
 	}
 	return cfg
 }
-
-// Example usage in main.go:
-//
-// func main() {
-//     // Load config with automatic priority handling
-//     cfg := config.MustLoad()
-//
-//     // Or load from specific file
-//     // cfg := config.MustLoadFromFile("config.production.yaml")
-//
-//     logger := setupLogger(cfg.Logger)
-//     logger.Info("application started",
-//         slog.String("address", cfg.GetServerAddress()),
-//         slog.Int("job_workers", cfg.Worker.JobWorkerCount),
-//     )
-// }

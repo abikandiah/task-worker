@@ -15,9 +15,10 @@ import (
 
 type JobService struct {
 	JobServiceDependencies
-	workerCh chan uuid.UUID
-	cancel   context.CancelFunc
-	wg       *sync.WaitGroup
+	jobCh  chan uuid.UUID
+	taskCh chan TaskRunRequest
+	cancel context.CancelFunc
+	wg     *sync.WaitGroup
 }
 
 type JobRepository interface {
@@ -31,21 +32,37 @@ type JobServiceDependencies struct {
 	logger      *slog.Logger
 }
 
-func NewJobService(deps *JobServiceDependencies, capacity int, maxWorkers int) *JobService {
+func NewJobService(deps *JobServiceDependencies, capacity int, maxJobWorkers int, maxTaskWorkers int) *JobService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	service := &JobService{
 		JobServiceDependencies: *deps,
-		workerCh:               make(chan uuid.UUID, capacity),
+		jobCh:                  make(chan uuid.UUID, capacity),
+		taskCh:                 make(chan TaskRunRequest),
 		wg:                     new(sync.WaitGroup),
 		cancel:                 cancel,
 	}
 
+	// Start Task Workers
+	for i := 0; i < maxTaskWorkers; i++ {
+		worker := &TaskWorker{
+			JobServiceDependencies: deps,
+			taskCh:                 service.taskCh,
+		}
+
+		service.wg.Add(1)
+		go func() {
+			defer service.wg.Done()
+			worker.Run(ctx)
+		}()
+	}
+
 	// Start Job Workers
-	for i := 0; i < maxWorkers; i++ {
+	for i := 0; i < maxJobWorkers; i++ {
 		worker := &JobWorker{
 			JobServiceDependencies: deps,
-			workerCh:               service.workerCh,
+			jobCh:                  service.jobCh,
+			taskCh:                 service.taskCh,
 		}
 
 		service.wg.Add(1)
@@ -77,7 +94,7 @@ func (service *JobService) SubmitJob(ctx context.Context, submission *domain.Job
 		return job, fmt.Errorf("failed to save job: %w", err)
 	}
 
-	ctx = context.WithValue(ctx, jobIDKey, job.ID)
+	ctx = context.WithValue(ctx, LKeys.JobID, job.ID)
 
 	// Populate JobID
 	for _, taskRun := range submission.TaskRuns {
@@ -90,7 +107,7 @@ func (service *JobService) SubmitJob(ctx context.Context, submission *domain.Job
 	}
 
 	// Send JobID to Job Worker
-	service.workerCh <- job.ID
+	service.jobCh <- job.ID
 
 	return job, nil
 }
@@ -104,5 +121,6 @@ func (service *JobService) Close(ctx context.Context) {
 	service.logger.InfoContext(ctx, "Closing job service")
 	service.cancel()
 	service.wg.Wait()
-	close(service.workerCh)
+	close(service.jobCh)
+	close(service.taskCh)
 }

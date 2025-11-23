@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/domain/task"
@@ -35,5 +36,6 @@ func EmailSendConstructor(params any, deps *domain.GlobalDependencies) (task.Tas
 }
 
 func (task *EmailSendTask) Execute(ctx context.Context) (any, error) {
+	<-time.After(10 * time.Second)
 	return nil, nil
 }

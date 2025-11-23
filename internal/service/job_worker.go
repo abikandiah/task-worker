@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -13,12 +14,15 @@ import (
 
 type JobWorker struct {
 	*JobServiceDependencies
-	workerCh <-chan uuid.UUID
+	jobCh  <-chan uuid.UUID
+	taskCh chan<- TaskRunRequest
 }
 
+var ErrJobTimedOut = errors.New("task timed out")
+
 func (worker *JobWorker) Run(ctx context.Context) {
-	for jobID := range worker.workerCh {
-		ctx := context.WithValue(ctx, jobIDKey, jobID)
+	for jobID := range worker.jobCh {
+		ctx := context.WithValue(ctx, LKeys.JobID, jobID)
 
 		// Get and run job
 		job, err := worker.repository.GetJob(ctx, jobID)
@@ -37,8 +41,8 @@ func (worker *JobWorker) Run(ctx context.Context) {
 }
 
 func (worker *JobWorker) runJob(ctx context.Context, job *domain.Job) error {
-	ctx = context.WithValue(ctx, jobNameKey, job.Name)
-	ctx = context.WithValue(ctx, configIDKey, job.ConfigID)
+	ctx = context.WithValue(ctx, LKeys.JobName, job.Name)
+	ctx = context.WithValue(ctx, LKeys.ConfigID, job.ConfigID)
 
 	// Get config
 	config, err := worker.repository.GetJobConfig(ctx, job.ConfigID)
@@ -47,47 +51,48 @@ func (worker *JobWorker) runJob(ctx context.Context, job *domain.Job) error {
 		return fmt.Errorf("failed to fetch config %s: %w", job.ConfigID, err)
 	}
 
+	ctxTimeout, cancel := context.WithTimeoutCause(ctx, (time.Duration(config.JobTimeout) * time.Second), ErrJobTimedOut)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- worker.executeJob(ctxTimeout, job, config)
+	}()
+
+	select {
+	case err := <-errCh:
+		return err
+
+	case <-ctxTimeout.Done():
+		// Error that cancelled the context
+		cause := context.Cause(ctxTimeout)
+
+		if errors.Is(cause, ErrJobTimedOut) {
+			return cause
+		}
+		return fmt.Errorf("job interrupted by upstream cancellation: %w", cause)
+	}
+}
+
+func (worker *JobWorker) executeJob(ctx context.Context, job *domain.Job, config *domain.JobConfig) error {
 	job.StartDate = time.Now()
 	worker.updateJobState(ctx, job, domain.StateRunning)
 	worker.repository.SaveJob(ctx, *job)
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, (time.Duration(config.JobTimeout) * time.Second))
-	defer cancel() // Always schedule cleanup to release resources
-
-	errCh := make(chan error)
-	go worker.runJobTasks(ctxTimeout, job, config, errCh)
-
-	select {
-	case err := <-errCh:
-		if err != nil {
-			return err
-		}
-
-		// Job finished
-		worker.updateJobState(ctx, job, domain.StateFinished)
-
-	case <-ctxTimeout.Done():
-		// Context cancelled / timed out
-		worker.updateJobState(ctx, job, domain.StateStopped)
-	}
-
-	job.EndDate = time.Now()
-	worker.repository.SaveJob(ctx, *job)
-
-	return nil
-}
-
-func (worker *JobWorker) runJobTasks(ctx context.Context, job *domain.Job, config *domain.JobConfig, errCh chan<- error) {
-	<-time.After(10 * time.Second)
+	// Finalize job in defer block
+	defer func() {
+		job.EndDate = time.Now()
+		worker.repository.SaveJob(ctx, *job)
+	}()
 
 	// Get TaskRuns
 	taskRuns, err := worker.repository.GetTaskRuns(ctx, job.ConfigID)
 	if err != nil {
 		worker.logger.ErrorContext(ctx, "Failed to fetch taskRuns", slog.Any("error", err))
-		errCh <- fmt.Errorf("failed to fetch taskRuns %s: %w", job.ID, err)
+		return fmt.Errorf("failed to fetch taskRuns %s: %w", job.ID, err)
 	}
 
-	// Execute tasks and update result
+	// Submit tasks to TaskWorkers and wait for result
 	wg := new(sync.WaitGroup)
 
 	for _, taskRun := range taskRuns {
@@ -98,61 +103,20 @@ func (worker *JobWorker) runJobTasks(ctx context.Context, job *domain.Job, confi
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ctxTimeout, cancel := context.WithTimeout(ctx, (time.Duration(config.TaskTimeout) * time.Second))
-			defer cancel()
 
 			errCh := make(chan error)
-
-			go func() {
-				err := worker.runTask(ctx, &taskRun)
-				if err != nil {
-					worker.logger.ErrorContext(ctx, "Task failed", slog.Any("error", err))
-					worker.updateTaskState(ctx, &taskRun, domain.StateError)
-					worker.repository.SaveTaskRun(ctx, taskRun)
-					errCh <- err
-				}
-
-				errCh <- nil
-			}()
-
-			select {
-			case err := <-errCh:
-				if err == nil {
-					worker.updateTaskState(ctx, &taskRun, domain.StateFinished)
-				}
-			case <-ctxTimeout.Done():
-				worker.updateTaskState(ctx, &taskRun, domain.StateStopped)
+			taskRequest := &TaskRunRequest{
+				data:  &taskRun,
+				errCh: errCh,
 			}
 
-			taskRun.EndDate = time.Now()
-			worker.repository.SaveTaskRun(ctx, taskRun)
+			worker.taskCh <- *taskRequest
+			err := <-errCh
+			if err != nil {
+				// TODO: do something with the error?
+			}
 		}()
 	}
-
-	errCh <- nil
-}
-
-func (worker *JobWorker) runTask(ctx context.Context, taskRun *domain.TaskRun) error {
-	ctx = context.WithValue(ctx, taskIDKey, taskRun.ID)
-
-	taskRun.StartDate = time.Now()
-	worker.repository.SaveTaskRun(ctx, *taskRun)
-
-	task, err := worker.taskFactory.CreateTask(taskRun.TaskName, taskRun.Params)
-	if err != nil {
-		worker.logger.ErrorContext(ctx, "Failed to create task", slog.Any("error", err))
-		return fmt.Errorf("failed to create task %s: %w", taskRun.TaskName, err)
-	}
-
-	res, err := task.Execute(ctx)
-	if err != nil {
-		worker.logger.ErrorContext(ctx, "Failed to create task", slog.Any("error", err))
-		return fmt.Errorf("failed to create task %s: %w", taskRun.TaskName, err)
-	}
-
-	taskRun.Result = res
-	taskRun.EndDate = time.Now()
-	worker.repository.SaveTaskRun(ctx, *taskRun)
 
 	return nil
 }
@@ -160,9 +124,4 @@ func (worker *JobWorker) runTask(ctx context.Context, taskRun *domain.TaskRun) e
 func (worker *JobWorker) updateJobState(ctx context.Context, job *domain.Job, state domain.ExecutionState) {
 	job.State = state
 	worker.logger.InfoContext(ctx, "Job "+job.State.String())
-}
-
-func (worker *JobWorker) updateTaskState(ctx context.Context, taskRun *domain.TaskRun, state domain.ExecutionState) {
-	taskRun.State = state
-	worker.logger.InfoContext(ctx, "TaskRun "+taskRun.State.String())
 }

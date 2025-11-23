@@ -1,12 +1,21 @@
 package service
 
-type internalKey string
+import "github.com/abikandiah/task-worker/internal/domain"
 
-const (
-	jobIDKey      internalKey = "job_id"
-	jobNameKey    internalKey = "job_name"
-	taskIDKey     internalKey = "task_id"
-	taskNameKey   internalKey = "task_name"
-	configIDKey   internalKey = "config_id"
-	configNameKey internalKey = "config_name"
-)
+type LogKeys struct {
+	JobID      domain.LogKey
+	JobName    domain.LogKey
+	TaskID     domain.LogKey
+	TaskName   domain.LogKey
+	ConfigID   domain.LogKey
+	ConfigName domain.LogKey
+}
+
+var LKeys = LogKeys{
+	JobID:      "job_id",
+	JobName:    "job_name",
+	TaskID:     "task_id",
+	TaskName:   "task_name",
+	ConfigID:   "config_id",
+	ConfigName: "config_name",
+}

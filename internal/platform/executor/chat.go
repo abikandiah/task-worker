@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/domain/task"
@@ -35,5 +36,6 @@ func ChatConstructor(params any, deps *domain.GlobalDependencies) (task.Task, er
 }
 
 func (task *ChatTask) Execute(ctx context.Context) (any, error) {
+	<-time.After(20 * time.Second)
 	return nil, nil
 }

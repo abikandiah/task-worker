@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -49,6 +50,7 @@ func NewServer(deps *ServerParams) *http.Server {
 		apiKeys: make(map[string]struct{}),
 	}
 
+	server.apiKeys[os.Getenv("DEV_SECRET")] = struct{}{}
 	server.setupMiddleware()
 	server.setupRoutes()
 

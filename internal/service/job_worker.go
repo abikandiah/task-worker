@@ -13,7 +13,7 @@ import (
 )
 
 type JobWorker struct {
-	*JobServiceDependencies
+	*jobServiceDependencies
 	jobCh  <-chan uuid.UUID
 	taskCh chan<- TaskRunRequest
 }

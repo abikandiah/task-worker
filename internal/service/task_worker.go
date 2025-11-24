@@ -18,7 +18,7 @@ type TaskRunRequest struct {
 }
 
 type TaskWorker struct {
-	*JobServiceDependencies
+	*jobServiceDependencies
 	taskCh <-chan TaskRunRequest
 }
 

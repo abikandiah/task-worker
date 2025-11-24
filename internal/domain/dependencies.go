@@ -7,6 +7,7 @@ import (
 )
 
 type GlobalDependencies struct {
-	Config *config.Config
-	Logger *slog.Logger
+	Config     *config.Config
+	Logger     *slog.Logger
+	Repository ServiceRepository
 }

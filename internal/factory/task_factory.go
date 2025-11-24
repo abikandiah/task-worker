@@ -19,14 +19,14 @@ type TaskFactory struct {
 	deps         *domain.GlobalDependencies
 }
 
-func InitTaskFactory(deps *domain.GlobalDependencies) *TaskFactory {
+func NewTaskFactory(deps *domain.GlobalDependencies) *TaskFactory {
 	taskFactory := &TaskFactory{
 		Constructors: make(map[string]any),
 		deps:         deps,
 	}
 
-	Register(taskFactory, "email_send_task", task.EmailSendConstructor)
-	Register(taskFactory, "chat_task", task.ChatConstructor)
+	Register(taskFactory, "email_send", task.EmailSendConstructor)
+	Register(taskFactory, "chat", task.ChatConstructor)
 
 	return taskFactory
 }

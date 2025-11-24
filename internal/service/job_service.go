@@ -14,47 +14,49 @@ import (
 )
 
 type JobService struct {
-	*JobServiceDependencies
+	*jobServiceDependencies
 	jobCh  chan uuid.UUID
 	taskCh chan TaskRunRequest
 	cancel context.CancelFunc
 	wg     *sync.WaitGroup
 }
 
-type JobRepository interface {
-	domain.JobRepository
-	domain.TaskRunRepository
-}
-
-type JobServiceDependencies struct {
-	cfg         config.WorkerConfig
+type jobServiceDependencies struct {
+	config      config.WorkerConfig
+	repository  domain.ServiceRepository
 	taskFactory *factory.TaskFactory
-	repository  JobRepository
 	logger      *slog.Logger
 }
 
-func NewJobService(deps *domain.GlobalDependencies, taskFactory *factory.TaskFactory) *JobService {
+type JobServiceParams struct {
+	Config      config.WorkerConfig
+	Repository  domain.ServiceRepository
+	TaskFactory *factory.TaskFactory
+	Logger      *slog.Logger
+}
+
+func NewJobService(params JobServiceParams) *JobService {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	workerConfig := deps.Config.Worker
-	jobServiceDeps := &JobServiceDependencies{
-		cfg:         workerConfig,
-		logger:      deps.Logger,
-		taskFactory: taskFactory,
+	jobServiceDeps := &jobServiceDependencies{
+		config:      params.Config,
+		logger:      params.Logger,
+		taskFactory: params.TaskFactory,
+		repository:  params.Repository,
 	}
 
 	service := &JobService{
-		JobServiceDependencies: jobServiceDeps,
-		jobCh:                  make(chan uuid.UUID, workerConfig.JobBufferCapacity),
+		jobServiceDependencies: jobServiceDeps,
+		jobCh:                  make(chan uuid.UUID, params.Config.JobBufferCapacity),
 		taskCh:                 make(chan TaskRunRequest),
 		wg:                     new(sync.WaitGroup),
 		cancel:                 cancel,
 	}
 
 	// Start Task Workers
-	for i := 0; i < workerConfig.TaskWorkerCount; i++ {
+	for i := 0; i < params.Config.TaskWorkerCount; i++ {
 		worker := &TaskWorker{
-			JobServiceDependencies: jobServiceDeps,
+			jobServiceDependencies: jobServiceDeps,
 			taskCh:                 service.taskCh,
 		}
 
@@ -66,9 +68,9 @@ func NewJobService(deps *domain.GlobalDependencies, taskFactory *factory.TaskFac
 	}
 
 	// Start Job Workers
-	for i := 0; i < workerConfig.JobWorkerCount; i++ {
+	for i := 0; i < params.Config.JobWorkerCount; i++ {
 		worker := &JobWorker{
-			JobServiceDependencies: jobServiceDeps,
+			jobServiceDependencies: jobServiceDeps,
 			jobCh:                  service.jobCh,
 			taskCh:                 service.taskCh,
 		}
@@ -127,8 +129,8 @@ func (service *JobService) GetJob(ctx context.Context, jobID uuid.UUID) (*domain
 
 func (service *JobService) Close(ctx context.Context) {
 	service.logger.InfoContext(ctx, "Closing job service")
-	service.cancel()
-	service.wg.Wait()
 	close(service.jobCh)
 	close(service.taskCh)
+	service.cancel()
+	service.wg.Wait()
 }

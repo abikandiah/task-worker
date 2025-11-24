@@ -92,6 +92,31 @@ func (repo *MockRepo) SaveJobConfig(ctx context.Context, config domain.JobConfig
 	return &copyConfig, nil
 }
 
+func (repo *MockRepo) GetTaskRun(ctx context.Context, taskID uuid.UUID) (*domain.TaskRun, error) {
+	repo.mu.RLock()
+	defer repo.mu.RUnlock()
+
+	taskRun, ok := repo.taskRuns[taskID]
+	if ok {
+		return taskRun, nil
+	}
+
+	return nil, errors.New("taskRun not found")
+}
+
+func (repo *MockRepo) SaveTaskRun(ctx context.Context, taskRun domain.TaskRun) (*domain.TaskRun, error) {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+
+	copyTaskRun := taskRun
+	if copyTaskRun.ID == uuid.Nil {
+		copyTaskRun.ID = uuid.New()
+	}
+
+	repo.taskRuns[copyTaskRun.ID] = &copyTaskRun
+	return &copyTaskRun, nil
+}
+
 func (repo *MockRepo) SaveTaskRuns(ctx context.Context, taskRuns []domain.TaskRun) ([]domain.TaskRun, error) {
 	repo.mu.Lock()
 	defer repo.mu.Unlock()

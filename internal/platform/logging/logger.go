@@ -13,51 +13,47 @@ func SetupLogger(cfg config.LoggerConfig) *slog.Logger {
 	levelVar := new(slog.LevelVar)
 	levelVar.Set(logLevel)
 
-	// Determine output format based on environment
+	// Output format based on environment
 	var handler slog.Handler
 
 	if cfg.Environment == "development" || cfg.Environment == "dev" {
 		// Use text handler for better readability in development
 		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level:     levelVar,
-			AddSource: true,
+			Level:       levelVar,
+			AddSource:   true,
+			ReplaceAttr: replaceEmptyAttr,
 		})
 	} else {
 		// Use JSON handler for production (easier to parse and index)
 		handler = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-			Level:     levelVar,
-			AddSource: true,
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-				// Rename source key for better clarity
-				if a.Key == slog.SourceKey {
-					return slog.Attr{
-						Key:   "caller",
-						Value: a.Value,
-					}
-				}
-				return a
-			},
+			Level:       levelVar,
+			AddSource:   false,
+			ReplaceAttr: replaceEmptyAttr,
 		})
 	}
 
 	// Create logger with default attributes
-	logger := slog.New(handler).With(
-		slog.String("service", cfg.ServiceName),
-		slog.String("version", cfg.Version),
-		slog.String("environment", cfg.Environment),
-	)
-
-	// Set as default logger
+	logger := slog.New(handler)
 	slog.SetDefault(logger)
 
 	// Log initialization
 	logger.Info("logger initialized",
 		slog.String("level", cfg.Level),
 		slog.String("environment", cfg.Environment),
+		slog.String("service", cfg.ServiceName),
+		slog.String("version", cfg.Version),
 		slog.String("format", getHandlerType(cfg)),
 	)
 
 	return logger
+}
+
+// Return empty attr to hide from log output
+func replaceEmptyAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Value.Kind() == slog.KindString && a.Value.String() == "" {
+		return slog.Attr{}
+	}
+	return a
 }
 
 func getHandlerType(cfg config.LoggerConfig) string {

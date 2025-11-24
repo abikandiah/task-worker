@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"testing"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/factory"
 	"github.com/abikandiah/task-worker/internal/mock"
+	"github.com/abikandiah/task-worker/internal/platform/logging"
 	"github.com/abikandiah/task-worker/internal/task"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +31,7 @@ func setupTestJobService(mockRepo *mock.MockRepo) (*JobService, *domain.GlobalDe
 	}
 
 	globalDeps := &domain.GlobalDependencies{
-		Logger:     slog.Default(),
+		Logger:     logging.SetupLogger(config.Logger),
 		Config:     &config,
 		Repository: mockRepo,
 	}
@@ -47,6 +47,7 @@ func setupTestJobService(mockRepo *mock.MockRepo) (*JobService, *domain.GlobalDe
 }
 
 func TestNewJobService(t *testing.T) {
+	ctx := context.Background()
 	mockRepo := mock.NewMockRepo()
 	service, deps := setupTestJobService(mockRepo)
 	defer service.Close(context.Background())
@@ -56,6 +57,8 @@ func TestNewJobService(t *testing.T) {
 	assert.NotNil(t, service.jobCh)
 	assert.NotNil(t, service.taskCh)
 	assert.NotNil(t, service.wg)
+
+	service.StartWorkers(ctx)
 	assert.NotNil(t, service.cancel)
 }
 

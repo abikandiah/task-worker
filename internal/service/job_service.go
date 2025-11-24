@@ -15,10 +15,11 @@ import (
 
 type JobService struct {
 	*jobServiceDependencies
-	jobCh  chan uuid.UUID
-	taskCh chan TaskRunRequest
-	cancel context.CancelFunc
-	wg     *sync.WaitGroup
+	jobCh   chan uuid.UUID
+	taskCh  chan TaskRunRequest
+	cancel  context.CancelFunc
+	wg      *sync.WaitGroup
+	started bool
 }
 
 type jobServiceDependencies struct {
@@ -36,8 +37,6 @@ type JobServiceParams struct {
 }
 
 func NewJobService(params JobServiceParams) *JobService {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	jobServiceDeps := &jobServiceDependencies{
 		config:      params.Config,
 		logger:      params.Logger,
@@ -50,13 +49,19 @@ func NewJobService(params JobServiceParams) *JobService {
 		jobCh:                  make(chan uuid.UUID, params.Config.JobBufferCapacity),
 		taskCh:                 make(chan TaskRunRequest),
 		wg:                     new(sync.WaitGroup),
-		cancel:                 cancel,
 	}
+	return service
+}
+
+func (service *JobService) StartWorkers(ctx context.Context) {
+	ctx, cancel := context.WithCancel(context.Background())
+	service.cancel = cancel
+	service.started = true
 
 	// Start Task Workers
-	for i := 0; i < params.Config.TaskWorkerCount; i++ {
+	for i := 0; i < service.config.TaskWorkerCount; i++ {
 		worker := &TaskWorker{
-			jobServiceDependencies: jobServiceDeps,
+			jobServiceDependencies: service.jobServiceDependencies,
 			taskCh:                 service.taskCh,
 		}
 
@@ -68,9 +73,9 @@ func NewJobService(params JobServiceParams) *JobService {
 	}
 
 	// Start Job Workers
-	for i := 0; i < params.Config.JobWorkerCount; i++ {
+	for i := 0; i < service.config.JobWorkerCount; i++ {
 		worker := &JobWorker{
-			jobServiceDependencies: jobServiceDeps,
+			jobServiceDependencies: service.jobServiceDependencies,
 			jobCh:                  service.jobCh,
 			taskCh:                 service.taskCh,
 		}
@@ -81,8 +86,6 @@ func NewJobService(params JobServiceParams) *JobService {
 			worker.Run(ctx)
 		}()
 	}
-
-	return service
 }
 
 func (service *JobService) SubmitJob(ctx context.Context, submission *domain.JobSubmission) (*domain.Job, error) {
@@ -131,6 +134,9 @@ func (service *JobService) Close(ctx context.Context) {
 	service.logger.InfoContext(ctx, "Closing job service")
 	close(service.jobCh)
 	close(service.taskCh)
-	service.cancel()
-	service.wg.Wait()
+
+	if service.started {
+		service.cancel()
+		service.wg.Wait()
+	}
 }

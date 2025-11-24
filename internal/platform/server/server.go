@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/abikandiah/task-worker/config"
@@ -19,30 +20,35 @@ type ErrorResponse struct {
 
 type Server struct {
 	*serverDepedencies
-	router *http.ServeMux
+	router  *http.ServeMux
+	limiter *rateLimiter
+	apiKeys map[string]struct{}
 }
 
 type serverDepedencies struct {
-	config *config.ServerConfig
-	logger *slog.Logger
+	serverConfig *config.ServerConfig
+	logger       *slog.Logger
 }
 
 type ServerParams struct {
-	Config *config.ServerConfig
-	Logger *slog.Logger
+	ServerConfig    *config.ServerConfig
+	RateLimitConfig *config.RateLimitConfig
+	Logger          *slog.Logger
 }
 
 func NewServer(deps *ServerParams) *http.Server {
 	server := &Server{
 		serverDepedencies: &serverDepedencies{
-			config: deps.Config,
-			logger: deps.Logger,
+			serverConfig: deps.ServerConfig,
+			logger:       deps.Logger,
 		},
-		router: http.NewServeMux(),
+		router:  http.NewServeMux(),
+		limiter: newRateLimiter(deps.RateLimitConfig),
+		apiKeys: make(map[string]struct{}),
 	}
 
 	server.routes()
-	config := server.config
+	config := server.serverConfig
 
 	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
 	timeouts := struct {
@@ -55,8 +61,6 @@ func NewServer(deps *ServerParams) *http.Server {
 		idle:  config.IdleTimeout.String(),
 	}
 
-	server.logger.Info("server initialized", "addr", addr, "timeouts", timeouts)
-
 	httpServer := &http.Server{
 		Addr:         addr,
 		Handler:      server.middleware(server),
@@ -65,26 +69,44 @@ func NewServer(deps *ServerParams) *http.Server {
 		IdleTimeout:  config.IdleTimeout * time.Second,
 	}
 
+	server.logger.Info("server initialized", "addr", addr, "timeouts", timeouts)
+	server.logger.Info("rate limiter initialized", "requests_per_second", server.limiter.rate, "burst", server.limiter.burst)
+
 	return httpServer
 }
 
 // Set up API routes
-func (s *Server) routes() {
-	s.router.HandleFunc("/health", s.handleHealth())
-	// s.router.HandleFunc("/api/items/", nil)
+func (server *Server) routes() {
+	server.router.HandleFunc("/health", server.handleHealth())
+
+	server.router.HandleFunc("/api/v1/items/", func(w http.ResponseWriter, r *http.Request) {})
 }
 
-func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.router.ServeHTTP(w, r)
+func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	server.router.ServeHTTP(w, r)
 }
 
 // Middleware chain
-func (s *Server) middleware(next http.Handler) http.Handler {
-	return s.logging(s.cors(s.recovery(next)))
+func (server *Server) middleware(next http.Handler) http.Handler {
+	return server.logging(server.cors(server.recovery(server.rateLimit(next))))
+}
+
+func (server *Server) validateContentType(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost || r.Method == http.MethodPut {
+			contentType := r.Header.Get("Content-Type")
+			if !strings.HasPrefix(contentType, "application/json") {
+				server.respondError(w, http.StatusUnsupportedMediaType,
+					"Content-Type must be application/json")
+				return
+			}
+		}
+		next(w, r)
+	}
 }
 
 // logging middleware logs each request
-func (s *Server) logging(next http.Handler) http.Handler {
+func (server *Server) logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r)
@@ -93,7 +115,7 @@ func (s *Server) logging(next http.Handler) http.Handler {
 }
 
 // cors middleware adds CORS headers
-func (s *Server) cors(next http.Handler) http.Handler {
+func (server *Server) cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -109,12 +131,12 @@ func (s *Server) cors(next http.Handler) http.Handler {
 }
 
 // recovery middleware recovers from panics
-func (s *Server) recovery(next http.Handler) http.Handler {
+func (server *Server) recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
 				log.Printf("panic: %v", err)
-				s.respondError(w, http.StatusInternalServerError, "Internal server error")
+				server.respondError(w, http.StatusInternalServerError, "Internal server error")
 			}
 		}()
 		next.ServeHTTP(w, r)
@@ -122,9 +144,9 @@ func (s *Server) recovery(next http.Handler) http.Handler {
 }
 
 // handleHealth returns health check endpoint
-func (s *Server) handleHealth() http.HandlerFunc {
+func (server *Server) handleHealth() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		s.respondJSON(w, http.StatusOK, map[string]string{
+		server.respondJSON(w, http.StatusOK, map[string]string{
 			"status": "ok",
 			"time":   time.Now().Format(time.RFC3339),
 		})
@@ -132,7 +154,7 @@ func (s *Server) handleHealth() http.HandlerFunc {
 }
 
 // respondJSON sends a JSON response
-func (s *Server) respondJSON(w http.ResponseWriter, status int, data interface{}) {
+func (server *Server) respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(data); err != nil {
@@ -141,8 +163,8 @@ func (s *Server) respondJSON(w http.ResponseWriter, status int, data interface{}
 }
 
 // respondError sends an error response
-func (s *Server) respondError(w http.ResponseWriter, status int, message string) {
-	s.respondJSON(w, status, ErrorResponse{
+func (server *Server) respondError(w http.ResponseWriter, status int, message string) {
+	server.respondJSON(w, status, ErrorResponse{
 		Error:   http.StatusText(status),
 		Message: message,
 	})

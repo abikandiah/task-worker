@@ -22,8 +22,9 @@ func main() {
 	}
 
 	httpServer := server.NewServer(&server.ServerParams{
-		Config: deps.Config.Server,
-		Logger: deps.Logger,
+		ServerConfig:    deps.Config.Server,
+		RateLimitConfig: deps.Config.RateLimit,
+		Logger:          deps.Logger,
 	})
 
 	// Start server in a goroutine

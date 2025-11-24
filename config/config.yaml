@@ -30,6 +30,10 @@ database:
   conn_max_lifetime: 5m
   ssl_mode: "disable"
 
+rate_limit:
+  requests_per_second: 100
+  burst: 200
+
 logger:
   level: "info"
 
@@ -46,10 +50,7 @@ cache:
   max_retries: 3
 
 # Rate Limiting
-rate_limit:
-  enabled: true
-  requests_per_second: 100
-  burst: 200
+
 
 # Monitoring & Health Checks
 monitoring:

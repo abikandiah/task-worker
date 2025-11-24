@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/factory"
 	"github.com/abikandiah/task-worker/internal/mock"
-	"github.com/abikandiah/task-worker/internal/platform/logging"
 	"github.com/abikandiah/task-worker/internal/task"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -25,11 +25,13 @@ func setupTestJobService(mockRepo *mock.MockRepo) (*JobService, *domain.GlobalDe
 			TaskWorkerCount:   2,
 			JobBufferCapacity: 10,
 		},
-		Logger: config.LoggerConfig{},
+		Logger: config.LoggerConfig{
+			Environment: "dev",
+		},
 	}
 
 	globalDeps := &domain.GlobalDependencies{
-		Logger:     logging.SetupLogger(config.Logger),
+		Logger:     slog.Default(),
 		Config:     &config,
 		Repository: mockRepo,
 	}

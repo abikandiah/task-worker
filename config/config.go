@@ -2,10 +2,12 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
@@ -211,10 +213,9 @@ func bindEnvironmentVariables(v *viper.Viper) {
 }
 
 func initDefaultViper() *viper.Viper {
-	// err := godotenv.Load("./.env")
-	// if err != nil {
-	// 	log.Fatalf("failed to load .env: %v", err)
-	// }
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found")
+	}
 	v := viper.New()
 	setDefaults(v)
 	return v

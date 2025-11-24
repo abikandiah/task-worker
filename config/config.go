@@ -29,6 +29,7 @@ type ServerConfig struct {
 	ReadTimeout     time.Duration `mapstructure:"read_timeout"`
 	WriteTimeout    time.Duration `mapstructure:"write_timeout"`
 	IdleTimeout     time.Duration `mapstructure:"idle_timeout"`
+	Timeout         time.Duration `mapstructure:"timeout"`
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
 }
 
@@ -147,6 +148,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.read_timeout", 10*time.Second)
 	v.SetDefault("server.write_timeout", 10*time.Second)
 	v.SetDefault("server.idle_timeout", 60*time.Second)
+	v.SetDefault("server.timeout", 60*time.Second)
 	v.SetDefault("server.shutdown_timeout", 15*time.Second)
 
 	v.SetDefault("database.host", "localhost")
@@ -181,6 +183,7 @@ func bindEnvironmentVariables(v *viper.Viper) {
 	v.BindEnv("server.read_timeout", "SERVER_READ_TIMEOUT")
 	v.BindEnv("server.write_timeout", "SERVER_WRITE_TIMEOUT")
 	v.BindEnv("server.idle_timeout", "SERVER_IDLE_TIMEOUT")
+	v.BindEnv("server.timeout", "SERVER_TIMEOUT")
 	v.BindEnv("server.shutdown_timeout", "SERVER_SHUTDOWN_TIMEOUT")
 
 	// Database Config
@@ -219,7 +222,10 @@ func initDefaultViper() *viper.Viper {
 
 // Validate checks if the configuration is valid
 func (config *Config) Validate() error {
-	if config.Server.ReadTimeout <= 0 || config.Server.WriteTimeout <= 0 || config.Server.IdleTimeout <= 0 || config.Server.ShutdownTimeout <= 0 {
+	if config.Server.ReadTimeout <= 0 || config.Server.WriteTimeout <= 0 ||
+		config.Server.IdleTimeout <= 0 || config.Server.ShutdownTimeout <= 0 ||
+		config.Server.Timeout <= 0 {
+
 		return fmt.Errorf("server timeouts must be positive")
 	}
 	if config.Server.Port < 1 || config.Server.Port > 65535 {

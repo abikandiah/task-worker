@@ -39,9 +39,8 @@ func (rl *rateLimiter) getLimiter(ip string) *rate.Limiter {
 }
 
 // Per-IP rate limiter middleware
-func (server *Server) rateLimit(next http.Handler) http.Handler {
+func (server *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Extract IP (handle X-Forwarded-For for proxies)
 		ip := r.RemoteAddr
 		if forwardedFor := r.Header.Get("X-Forwarded-For"); forwardedFor != "" {
 			ip = strings.Split(forwardedFor, ",")[0]

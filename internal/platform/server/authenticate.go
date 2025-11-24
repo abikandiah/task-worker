@@ -1,34 +1,50 @@
 package server
 
 import (
+	"context"
+	"errors"
 	"net/http"
-	"strings"
+
+	"github.com/abikandiah/task-worker/internal/domain"
 )
 
-func (server *Server) authenticate(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Extract API key from Authorization header
+const userLogKey domain.LogKey = "user"
+
+type UserInfo struct {
+	Name string
+}
+
+func (server *Server) authenticateMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Get token from the Authorization header (e.g., Bearer <token>)
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			server.respondError(w, http.StatusUnauthorized, "Missing authorization header")
-			return
+		if authHeader == "" || len(authHeader) < 7 || authHeader[:6] != "Bearer" {
+			http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
+			return // Stop execution
 		}
 
-		// Expected format: "Bearer <api-key>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			server.respondError(w, http.StatusUnauthorized, "Invalid authorization format")
-			return
+		token := authHeader[7:]
+
+		// Validate the token and retrieve user information
+		user, err := server.validateToken(token)
+		if err != nil {
+			http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+			return // Stop execution
 		}
 
-		apiKey := parts[1]
-		_, ok := server.apiKeys[apiKey]
+		// Set authenticated user in context
+		ctx := context.WithValue(r.Context(), userLogKey, user)
+		// Update context and proceed
+		r = r.WithContext(ctx)
+		next.ServeHTTP(w, r)
+	})
+}
 
-		if !ok {
-			server.respondError(w, http.StatusUnauthorized, "Invalid API key")
-			return
-		}
-
-		next(w, r)
+func (server *Server) validateToken(token string) (*UserInfo, error) {
+	_, ok := server.apiKeys[token]
+	if !ok {
+		return nil, errors.New("invalid API key")
 	}
+
+	return nil, nil
 }

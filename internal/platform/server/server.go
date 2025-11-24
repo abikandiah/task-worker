@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/config"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 // ErrorResponse represents an error response
@@ -20,7 +22,7 @@ type ErrorResponse struct {
 
 type Server struct {
 	*serverDepedencies
-	router  *http.ServeMux
+	router  *chi.Mux
 	limiter *rateLimiter
 	apiKeys map[string]struct{}
 }
@@ -42,44 +44,27 @@ func NewServer(deps *ServerParams) *http.Server {
 			serverConfig: deps.ServerConfig,
 			logger:       deps.Logger,
 		},
-		router:  http.NewServeMux(),
+		router:  chi.NewRouter(),
 		limiter: newRateLimiter(deps.RateLimitConfig),
 		apiKeys: make(map[string]struct{}),
 	}
 
-	server.routes()
+	server.setupMiddleware()
+	server.setupRoutes()
+
 	config := server.serverConfig
-
-	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
-	timeouts := struct {
-		read  string
-		write string
-		idle  string
-	}{
-		read:  config.ReadTimeout.String(),
-		write: config.WriteTimeout.String(),
-		idle:  config.IdleTimeout.String(),
-	}
-
 	httpServer := &http.Server{
-		Addr:         addr,
-		Handler:      server.middleware(server),
+		Addr:         fmt.Sprintf("%s:%d", config.Host, config.Port),
+		Handler:      server,
 		ReadTimeout:  config.ReadTimeout * time.Second,
 		WriteTimeout: config.WriteTimeout * time.Second,
 		IdleTimeout:  config.IdleTimeout * time.Second,
 	}
 
-	server.logger.Info("server initialized", "addr", addr, "timeouts", timeouts)
+	server.logger.Info("server initialized", "config", *config)
 	server.logger.Info("rate limiter initialized", "requests_per_second", server.limiter.rate, "burst", server.limiter.burst)
 
 	return httpServer
-}
-
-// Set up API routes
-func (server *Server) routes() {
-	server.router.HandleFunc("/health", server.handleHealth())
-
-	server.router.HandleFunc("/api/v1/items/", func(w http.ResponseWriter, r *http.Request) {})
 }
 
 func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -87,35 +72,37 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Middleware chain
-func (server *Server) middleware(next http.Handler) http.Handler {
-	return server.logging(server.cors(server.recovery(server.rateLimit(next))))
+func (server *Server) setupMiddleware() {
+	// Chi's built-in middleware
+	server.router.Use(middleware.RequestID)
+	server.router.Use(middleware.RealIP)
+	server.router.Use(middleware.Logger)
+	server.router.Use(middleware.Recoverer)
+
+	// Custom middleware
+	server.router.Use(server.corsMiddleware)
+	server.router.Use(server.rateLimitMiddleware)
+
+	// Timeout middleware
+	server.router.Use(middleware.Timeout(server.serverConfig.Timeout * time.Second))
 }
 
-func (server *Server) validateContentType(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) contentTypeMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost || r.Method == http.MethodPut {
 			contentType := r.Header.Get("Content-Type")
 			if !strings.HasPrefix(contentType, "application/json") {
-				server.respondError(w, http.StatusUnsupportedMediaType,
+				s.respondError(w, http.StatusUnsupportedMediaType,
 					"Content-Type must be application/json")
 				return
 			}
 		}
-		next(w, r)
-	}
-}
-
-// logging middleware logs each request
-func (server *Server) logging(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
 		next.ServeHTTP(w, r)
-		log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start))
 	})
 }
 
-// cors middleware adds CORS headers
-func (server *Server) cors(next http.Handler) http.Handler {
+// corsMiddleware adds CORS headers
+func (s *Server) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -130,30 +117,15 @@ func (server *Server) cors(next http.Handler) http.Handler {
 	})
 }
 
-// recovery middleware recovers from panics
-func (server *Server) recovery(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				log.Printf("panic: %v", err)
-				server.respondError(w, http.StatusInternalServerError, "Internal server error")
-			}
-		}()
-		next.ServeHTTP(w, r)
+// Health check
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	s.respondJSON(w, http.StatusOK, map[string]string{
+		"status": "ok",
+		"time":   time.Now().Format(time.RFC3339),
 	})
 }
 
-// handleHealth returns health check endpoint
-func (server *Server) handleHealth() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		server.respondJSON(w, http.StatusOK, map[string]string{
-			"status": "ok",
-			"time":   time.Now().Format(time.RFC3339),
-		})
-	}
-}
-
-// respondJSON sends a JSON response
+// Send a JSON response
 func (server *Server) respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -162,7 +134,7 @@ func (server *Server) respondJSON(w http.ResponseWriter, status int, data interf
 	}
 }
 
-// respondError sends an error response
+// Send an error response
 func (server *Server) respondError(w http.ResponseWriter, status int, message string) {
 	server.respondJSON(w, status, ErrorResponse{
 		Error:   http.StatusText(status),

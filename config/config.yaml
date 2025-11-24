@@ -1,39 +1,37 @@
-# Application Configuration - Production Environment
+# Application Configuration
+# Note: Sensitive values (passwords, secrets) should be set via environment variables
 # Last Updated: 2025-011-22
 
-# Server Configuration
+environment: "development"
+service_name: "task-worker"
+version: "1.0.0"
+
+worker:
+  job_buffer_capacity: 100
+  job_worker_count: 5
+  task_worker_count: 10
+
 server:
   host: "0.0.0.0"
   port: 8080
-  read_timeout: "30s"
-  write_timeout: "30s"
-  shutdown_timeout: "30s"
+  read_timeout: 15s
+  write_timeout: 15s
+  idle_timeout: 60s
+  shutdown_timeout: 30s
 
-# Database Configuration
 database:
-  host: "postgres-primary.internal"
+  host: "localhost"
   port: 5432
-  user: "app_user"
-  # Password should be set via environment variable DB_PASSWORD
-  password: ""
-  db_name: "production_db"
-  max_open_conns: 50
-  max_idle_conns: 10
-  conn_max_lifetime: "5m"
-  ssl_mode: "require"
+  user: "appuser"
+  password: ""  # Set via APP_DATABASE_PASSWORD environment variable
+  db_name: "appdb"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+  ssl_mode: "disable"
 
-# Logger Configuration
 logger:
-  level: "INFO"
-  environment: "production"
-  service_name: "my-service"
-  version: "v1.0.0"
-
-# Worker Configuration
-worker:
-  job_worker_count: 2
-  task_worker_count: 4
-  job_buffer_capacity: 128
+  level: "info"
 
 # Additional Production Settings
 # (You can extend the config struct to include these)

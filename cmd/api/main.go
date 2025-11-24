@@ -3,41 +3,51 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/abikandiah/task-worker/internal/factory"
 	"github.com/abikandiah/task-worker/internal/platform/server"
 )
 
 // Entry point for HTTP server
 func main() {
-	port := "8000"
-	_, httpServer := server.NewServer(port)
+	deps, err := factory.NewGlobalDependencies()
+	if err != nil {
+		log.Fatalf("Server failed to start: %v", err)
+	}
+
+	httpServer := server.NewServer(&server.ServerParams{
+		Config: deps.Config.Server,
+		Logger: deps.Logger,
+	})
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("Server starting on port %s", port)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed to start: %v", err)
+			deps.Logger.Error("server failed to start", slog.Any("error", err))
 		}
 	}()
+
+	deps.Logger.Info("server is listening and ready to handle requests")
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Server shutting down...")
+	deps.Logger.Info("server shutting down...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := httpServer.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		deps.Logger.Error("server forced to shutdown", slog.Any("error", err))
 	}
 
-	log.Println("Server stopped")
+	deps.Logger.Info("server stopped")
 }

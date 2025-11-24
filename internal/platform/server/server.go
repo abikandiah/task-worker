@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"time"
+
+	"github.com/abikandiah/task-worker/config"
 )
 
 // ErrorResponse represents an error response
@@ -15,25 +18,54 @@ type ErrorResponse struct {
 }
 
 type Server struct {
+	*serverDepedencies
 	router *http.ServeMux
 }
 
-func NewServer(port string) (*Server, *http.Server) {
+type serverDepedencies struct {
+	config *config.ServerConfig
+	logger *slog.Logger
+}
+
+type ServerParams struct {
+	Config *config.ServerConfig
+	Logger *slog.Logger
+}
+
+func NewServer(deps *ServerParams) *http.Server {
 	server := &Server{
+		serverDepedencies: &serverDepedencies{
+			config: deps.Config,
+			logger: deps.Logger,
+		},
 		router: http.NewServeMux(),
 	}
 
 	server.routes()
+	config := server.config
 
-	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%s", port),
-		Handler:      server.middleware(server),
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
+	timeouts := struct {
+		read  string
+		write string
+		idle  string
+	}{
+		read:  config.ReadTimeout.String(),
+		write: config.WriteTimeout.String(),
+		idle:  config.IdleTimeout.String(),
 	}
 
-	return server, httpServer
+	server.logger.Info("server initialized", "addr", addr, "timeouts", timeouts)
+
+	httpServer := &http.Server{
+		Addr:         addr,
+		Handler:      server.middleware(server),
+		ReadTimeout:  config.ReadTimeout * time.Second,
+		WriteTimeout: config.WriteTimeout * time.Second,
+		IdleTimeout:  config.IdleTimeout * time.Second,
+	}
+
+	return httpServer
 }
 
 // Set up API routes

@@ -13,10 +13,13 @@ import (
 const EnvPrefix = "APP"
 
 type Config struct {
-	Worker   WorkerConfig   `mapstructure:"worker"`
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Logger   LoggerConfig   `mapstructure:"logger"`
+	Environment string          `mapstructure:"environment"`
+	ServiceName string          `mapstructure:"service_name"`
+	Version     string          `mapstructure:"version"`
+	Worker      *WorkerConfig   `mapstructure:"worker"`
+	Server      *ServerConfig   `mapstructure:"server"`
+	Database    *DatabaseConfig `mapstructure:"database"`
+	Logger      *LoggerConfig   `mapstructure:"logger"`
 }
 
 type ServerConfig struct {
@@ -24,6 +27,7 @@ type ServerConfig struct {
 	Port            int           `mapstructure:"port"`
 	ReadTimeout     time.Duration `mapstructure:"read_timeout"`
 	WriteTimeout    time.Duration `mapstructure:"write_timeout"`
+	IdleTimeout     time.Duration `mapstructure:"idle_timeout"`
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
 }
 
@@ -40,10 +44,7 @@ type DatabaseConfig struct {
 }
 
 type LoggerConfig struct {
-	Level       string `mapstructure:"level"`
-	Environment string `mapstructure:"environment"`
-	ServiceName string `mapstructure:"service_name"`
-	Version     string `mapstructure:"version"`
+	Level string `mapstructure:"level"`
 }
 
 type WorkerConfig struct {
@@ -85,17 +86,17 @@ func Load() (*Config, error) {
 	bindEnvironmentVariables(v)
 
 	// Unmarshal config into struct
-	cfg := &Config{}
-	if err := v.Unmarshal(cfg); err != nil {
+	config := &Config{}
+	if err := v.Unmarshal(config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	// Validate configuration
-	if err := cfg.Validate(); err != nil {
+	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
-	return cfg, nil
+	return config, nil
 }
 
 // LoadFromFile reads configuration from a specific file path
@@ -122,17 +123,17 @@ func LoadFromFile(path string) (*Config, error) {
 	bindEnvironmentVariables(v)
 
 	// Unmarshal config into struct
-	cfg := &Config{}
-	if err := v.Unmarshal(cfg); err != nil {
+	config := &Config{}
+	if err := v.Unmarshal(config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
 	// Validate configuration
-	if err := cfg.Validate(); err != nil {
+	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
-	return cfg, nil
+	return config, nil
 }
 
 // Default configuration
@@ -193,43 +194,43 @@ func bindEnvironmentVariables(v *viper.Viper) {
 }
 
 // Validate checks if the configuration is valid
-func (c *Config) Validate() error {
-	if c.Server.ReadTimeout <= 0 || c.Server.WriteTimeout <= 0 || c.Server.ShutdownTimeout <= 0 {
+func (config *Config) Validate() error {
+	if config.Server.ReadTimeout <= 0 || config.Server.WriteTimeout <= 0 || config.Server.IdleTimeout <= 0 || config.Server.ShutdownTimeout <= 0 {
 		return fmt.Errorf("server timeouts must be positive")
 	}
-	if c.Server.Port < 1 || c.Server.Port > 65535 {
-		return fmt.Errorf("invalid server port: %d", c.Server.Port)
+	if config.Server.Port < 1 || config.Server.Port > 65535 {
+		return fmt.Errorf("invalid server port: %d", config.Server.Port)
 	}
 
-	if c.Database.Port < 1 || c.Database.Port > 65535 {
-		return fmt.Errorf("invalid database port: %d", c.Database.Port)
+	if config.Database.Port < 1 || config.Database.Port > 65535 {
+		return fmt.Errorf("invalid database port: %d", config.Database.Port)
 	}
-	if c.Database.MaxOpenConns < 1 {
+	if config.Database.MaxOpenConns < 1 {
 		return fmt.Errorf("max open connections must be at least 1")
 	}
-	if c.Database.MaxIdleConns < 0 {
+	if config.Database.MaxIdleConns < 0 {
 		return fmt.Errorf("max idle connections cannot be negative")
 	}
-	if c.Database.MaxIdleConns > c.Database.MaxOpenConns {
+	if config.Database.MaxIdleConns > config.Database.MaxOpenConns {
 		return fmt.Errorf("max idle connections cannot exceed max open connections")
 	}
 
 	// Safety check for production password
-	isProd := strings.ToLower(c.Logger.Environment) == "production"
-	if c.Database.Password == "" && isProd {
+	isProd := strings.ToLower(config.Environment) == "production"
+	if config.Database.Password == "" && isProd {
 		// Check if password was provided via environment variables
 		if os.Getenv("DB_PASSWORD") == "" && os.Getenv(EnvPrefix+"_DATABASE_PASSWORD") == "" {
 			return fmt.Errorf("database password cannot be empty in production environment")
 		}
 	}
 
-	if c.Worker.JobBufferCapacity < 0 {
+	if config.Worker.JobBufferCapacity < 0 {
 		return fmt.Errorf("job buffer capacity cannot be negative")
 	}
-	if c.Worker.JobWorkerCount < 1 {
+	if config.Worker.JobWorkerCount < 1 {
 		return fmt.Errorf("job worker count must be at least 1")
 	}
-	if c.Worker.TaskWorkerCount < 1 {
+	if config.Worker.TaskWorkerCount < 1 {
 		return fmt.Errorf("task worker count must be at least 1")
 	}
 
@@ -237,37 +238,37 @@ func (c *Config) Validate() error {
 }
 
 // GetDatabaseDSN returns a PostgreSQL DSN connection string
-func (c *Config) GetDatabaseDSN() string {
+func (config *Config) GetDatabaseDSN() string {
 	return fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		c.Database.Host,
-		c.Database.Port,
-		c.Database.User,
-		c.Database.Password,
-		c.Database.DBName,
-		c.Database.SSLMode,
+		config.Database.Host,
+		config.Database.Port,
+		config.Database.User,
+		config.Database.Password,
+		config.Database.DBName,
+		config.Database.SSLMode,
 	)
 }
 
 // GetServerAddress returns the full server address
-func (c *Config) GetServerAddress() string {
-	return fmt.Sprintf("%s:%d", c.Server.Host, c.Server.Port)
+func (config *Config) GetServerAddress() string {
+	return fmt.Sprintf("%s:%d", config.Server.Host, config.Server.Port)
 }
 
 // Loads configuration and panics if it fails
 func MustLoad() *Config {
-	cfg, err := Load()
+	config, err := Load()
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
-	return cfg
+	return config
 }
 
 // Loads configuration from file and panics if it fails
 func MustLoadFromFile(path string) *Config {
-	cfg, err := LoadFromFile(path)
+	config, err := LoadFromFile(path)
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config from file: %v", err))
 	}
-	return cfg
+	return config
 }

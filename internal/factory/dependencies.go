@@ -7,11 +7,17 @@ import (
 )
 
 func NewGlobalDependencies() (*domain.GlobalDependencies, error) {
-	cfg := config.MustLoad()
-	logger := logging.SetupLogger(cfg.Logger)
+	config := config.MustLoad()
+
+	logger := logging.SetupLogger(logging.LoggerParams{
+		Level:       config.Logger.Level,
+		Environment: config.Environment,
+		ServiceName: config.ServiceName,
+		Version:     config.Version,
+	})
 
 	return &domain.GlobalDependencies{
-		Config: cfg,
+		Config: config,
 		Logger: logger,
 	}, nil
 }

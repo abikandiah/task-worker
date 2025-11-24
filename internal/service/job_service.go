@@ -23,14 +23,14 @@ type JobService struct {
 }
 
 type jobServiceDependencies struct {
-	config      config.WorkerConfig
+	config      *config.WorkerConfig
 	repository  domain.ServiceRepository
 	taskFactory *factory.TaskFactory
 	logger      *slog.Logger
 }
 
 type JobServiceParams struct {
-	Config      config.WorkerConfig
+	Config      *config.WorkerConfig
 	Repository  domain.ServiceRepository
 	TaskFactory *factory.TaskFactory
 	Logger      *slog.Logger

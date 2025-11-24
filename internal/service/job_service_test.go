@@ -20,19 +20,23 @@ import (
 
 func setupTestJobService(mockRepo *mock.MockRepo) (*JobService, *domain.GlobalDependencies) {
 	config := config.Config{
-		Worker: config.WorkerConfig{
+		Worker: &config.WorkerConfig{
 			JobWorkerCount:    2,
 			TaskWorkerCount:   2,
 			JobBufferCapacity: 10,
 		},
-		Logger: config.LoggerConfig{
-			Environment: "dev",
-		},
 	}
 
+	logger := logging.SetupLogger(logging.LoggerParams{
+		Level:       config.Logger.Level,
+		Environment: config.Environment,
+		ServiceName: config.ServiceName,
+		Version:     config.Version,
+	})
+
 	globalDeps := &domain.GlobalDependencies{
-		Logger:     logging.SetupLogger(config.Logger),
 		Config:     &config,
+		Logger:     logger,
 		Repository: mockRepo,
 	}
 

@@ -108,7 +108,7 @@ func (service *JobService) SubmitJob(ctx context.Context, submission *domain.Job
 	for i := range submission.TaskRuns {
 		submission.TaskRuns[i].JobID = job.ID
 	}
-	service.repository.SaveTaskRuns(ctx, submission.TaskRuns)
+	_, err = service.repository.SaveTaskRuns(ctx, submission.TaskRuns)
 	if err != nil {
 		service.logger.ErrorContext(ctx, "Failed to save job taskRuns", slog.Any("error", err))
 		return job, fmt.Errorf("failed to save job taskRuns: %w", err)

@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/factory"
+	"github.com/abikandiah/task-worker/internal/mock"
 	"github.com/abikandiah/task-worker/internal/platform/server"
+	"github.com/abikandiah/task-worker/internal/service"
 )
 
 // Entry point for HTTP server
@@ -21,10 +23,24 @@ func main() {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 
+	taskFactory := factory.NewTaskFactory(deps)
+	repo := mock.NewMockRepo()
+
+	jobService := service.NewJobService(&service.JobServiceParams{
+		Config:      deps.Config.Worker,
+		Logger:      deps.Logger,
+		TaskFactory: taskFactory,
+		Repository:  repo,
+	})
+
+	ctx := context.Background()
+	jobService.StartWorkers(ctx)
+
 	httpServer := server.NewServer(&server.ServerParams{
 		ServerConfig:    deps.Config.Server,
 		RateLimitConfig: deps.Config.RateLimit,
 		Logger:          deps.Logger,
+		JobService:      jobService,
 	})
 
 	// Start server in a goroutine

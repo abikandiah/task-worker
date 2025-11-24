@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/config"
+	"github.com/abikandiah/task-worker/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -31,12 +32,14 @@ type Server struct {
 type serverDepedencies struct {
 	serverConfig *config.ServerConfig
 	logger       *slog.Logger
+	jobService   *service.JobService
 }
 
 type ServerParams struct {
 	ServerConfig    *config.ServerConfig
 	RateLimitConfig *config.RateLimitConfig
 	Logger          *slog.Logger
+	JobService      *service.JobService
 }
 
 func NewServer(deps *ServerParams) *http.Server {
@@ -44,6 +47,7 @@ func NewServer(deps *ServerParams) *http.Server {
 		serverDepedencies: &serverDepedencies{
 			serverConfig: deps.ServerConfig,
 			logger:       deps.Logger,
+			jobService:   deps.JobService,
 		},
 		router:  chi.NewRouter(),
 		limiter: newRateLimiter(deps.RateLimitConfig),

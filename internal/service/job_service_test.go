@@ -40,7 +40,7 @@ func setupTestJobService(mockRepo *mock.MockRepo) (*JobService, *domain.GlobalDe
 		Repository: mockRepo,
 	}
 
-	service := NewJobService(JobServiceParams{
+	service := NewJobService(&JobServiceParams{
 		Config:      globalDeps.Config.Worker,
 		Repository:  globalDeps.Repository,
 		TaskFactory: factory.NewTaskFactory(globalDeps),

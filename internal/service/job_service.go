@@ -36,7 +36,7 @@ type JobServiceParams struct {
 	Logger      *slog.Logger
 }
 
-func NewJobService(params JobServiceParams) *JobService {
+func NewJobService(params *JobServiceParams) *JobService {
 	jobServiceDeps := &jobServiceDependencies{
 		config:      params.Config,
 		logger:      params.Logger,

@@ -20,7 +20,7 @@ func (server *Server) loggerMiddleware(next http.Handler) http.Handler {
 		// Create request-specific logger based on logger
 		requestID := middleware.GetReqID(r.Context())
 		requestLogger := server.logger.With(
-			slog.String("request_ID", requestID),
+			slog.String("request_id", requestID),
 			slog.String("method", r.Method),
 			slog.String("path", r.URL.Path),
 		)
@@ -47,14 +47,14 @@ func (server *Server) contentTypeMiddleware(next http.Handler) http.Handler {
 
 			// Be more robust: check if Content-Type is missing entirely (often a bad request)
 			if contentType == "" {
-				respondError(w, r, http.StatusBadRequest, "Content-Type header is required")
+				server.respondError(w, http.StatusBadRequest, "Content-Type header is required")
 				return
 			}
 
 			// The standard library provides a function for robust media type parsing
 			mediaType, _, err := mime.ParseMediaType(contentType)
 			if err != nil || mediaType != "application/json" {
-				respondError(w, r, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
+				server.respondError(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
 				return
 			}
 		}

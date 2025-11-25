@@ -49,7 +49,7 @@ func (server *Server) rateLimitMiddleware(next http.Handler) http.Handler {
 
 		limiter := server.limiter.getLimiter(ip)
 		if !limiter.Allow() {
-			respondError(w, r, http.StatusTooManyRequests, "Rate limit exceeded")
+			server.respondError(w, http.StatusTooManyRequests, "Rate limit exceeded")
 			return
 		}
 

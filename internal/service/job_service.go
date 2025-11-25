@@ -130,6 +130,14 @@ func (service *JobService) GetJob(ctx context.Context, jobID uuid.UUID) (*domain
 	return job, err
 }
 
+func (service *JobService) GetJobStatus(ctx context.Context, jobID uuid.UUID) (domain.ExecutionState, error) {
+	if job, err := service.GetJob(ctx, jobID); err != nil {
+		return domain.StateError, err
+	} else {
+		return job.State, nil
+	}
+}
+
 func (service *JobService) GetAllJobs(ctx context.Context, input *domain.CursorInput) (*domain.CursorOutput[domain.Job], error) {
 	output, err := service.repository.GetAllJobs(ctx, input)
 	return output, err

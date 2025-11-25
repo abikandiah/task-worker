@@ -5,26 +5,43 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 )
 
+// ErrorResponse represents an error response
+type ErrorResponse struct {
+	Error   string `json:"error"`
+	Message string `json:"message,omitempty"`
+}
+
 // Send a JSON response
-func respondJSON(w http.ResponseWriter, r *http.Request, status int, data any) {
+func (server *Server) respondJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		// Retrieve RequestID from the context for better debugging
-		requestContext := r.Context()
-		requestID := middleware.GetReqID(requestContext)
-		logger := GetRequestLogger(requestContext)
-		logger.ErrorContext(requestContext, "error encoding response", "reqID", requestID, slog.Any("error", err))
+		server.logger.Error("failed to encode response",
+			slog.String("error", err.Error()),
+		)
 	}
 }
 
-// Send an error response
-func respondError(w http.ResponseWriter, r *http.Request, status int, message string) {
-	respondJSON(w, r, status, ErrorResponse{
+func (server *Server) respondError(w http.ResponseWriter, status int, message string) {
+	server.respondJSON(w, status, ErrorResponse{
 		Error:   http.StatusText(status),
 		Message: message,
 	})
+}
+
+// parseUUIDOrDefault attempts to parse a string as a UUID.
+// If parsing fails (invalid format), it returns uuid.Nil, effectively defaulting the cursor.
+func parseUUIDOrDefault(s string) uuid.UUID {
+	if s == "" {
+		return uuid.Nil
+	}
+	id, err := uuid.Parse(s)
+	if err != nil {
+		return uuid.Nil
+	}
+	return id
 }

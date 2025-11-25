@@ -71,12 +71,6 @@ func (c *ServerConfig) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.String("host", c.Host),
 		slog.Int("port", c.Port),
-		// Format durations
-		slog.String("read_timeout", c.ReadTimeout.String()),
-		slog.String("write_timeout", c.WriteTimeout.String()),
-		slog.String("idle_timeout", c.IdleTimeout.String()),
-		slog.String("timeout", c.Timeout.String()),
-		slog.String("shutdown_timeout", c.ShutdownTimeout.String()),
 		slog.Any("cors", c.Cors),
 	)
 }
@@ -86,8 +80,6 @@ func (c *DatabaseConfig) LogValue() slog.Value {
 		slog.String("host", c.Host),
 		slog.Int("port", c.Port),
 		slog.String("db_name", c.DBName),
-		slog.Int("max_open_conns", c.MaxOpenConns),
-		slog.Int("max_idle_conns", c.MaxIdleConns),
 		slog.String("conn_max_lifetime", c.ConnMaxLifetime.String()),
 	)
 }

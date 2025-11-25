@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,12 +13,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
-
-// ErrorResponse represents an error response
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message,omitempty"`
-}
 
 type Server struct {
 	*serverDepedencies
@@ -51,11 +46,24 @@ func NewServer(deps *ServerParams) *http.Server {
 		apiKeys: make(map[string]struct{}),
 	}
 
-	server.apiKeys[os.Getenv("WORKER_SECRET")] = struct{}{}
+	// Load API key with validation
+	workerSecret := os.Getenv("WORKER_SECRET")
+	if workerSecret == "" {
+		server.logger.Warn("WORKER_SECRET not set - API authentication may not work")
+	} else {
+		server.apiKeys[workerSecret] = struct{}{}
+	}
+
 	server.setupMiddleware()
 	server.setupRoutes()
 
 	config := server.serverConfig
+	errorLog := log.New(
+		&logWriter{logger: server.logger},
+		"",
+		0,
+	)
+
 	httpServer := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", config.Host, config.Port),
 		Handler:           server,
@@ -64,10 +72,13 @@ func NewServer(deps *ServerParams) *http.Server {
 		IdleTimeout:       config.IdleTimeout * time.Second,
 		MaxHeaderBytes:    1 << 20,
 		ReadHeaderTimeout: 5 * time.Second,
+		ErrorLog:          errorLog,
 	}
 
 	server.logger.Info("server initialized", slog.Any("server_config", config))
 	server.logger.Info("rate limiter initialized", slog.Any("rate_limit_config", deps.RateLimitConfig))
+
+	server.printRoutes("")
 
 	return httpServer
 }
@@ -98,21 +109,36 @@ func (server *Server) setupRoutes() {
 	server.router.Get("/health", server.handleHealth)
 
 	server.router.Route("/api/v1", func(r chi.Router) {
-		// Authenticate routes
+		// Authenticated routes
 		r.Use(server.authenticateMiddleware)
 
 		// Job endpoints
-		r.Route("/job", func(r chi.Router) {
-			r.Get("/", server.handleGetJobs)
-			// r.Post("/", server.createItem)
-
-			// r.Route("/{id}", func(r chi.Router) {
-			// r.Get("/", server.getItem)
-			// r.Put("/", server.updateItem)
-			// r.Delete("/", server.deleteItem)
-		})
+		r.Route("/jobs", server.setupJobRoutes())
 	})
+}
 
-	// Easy to add more resource groups
-	// r.Route("/users", func(r chi.Router) { ... })
+func (server *Server) printRoutes(prefix string) {
+	// Walk through the router's handler structure
+	chi.Walk(server.router, func(method string, routePath string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
+		// Combine the prefix (from parent routes) with the routePath
+		fullPath := prefix + routePath
+
+		// Skip routes that are just prefixes or placeholders
+		if fullPath == "" {
+			return nil
+		}
+
+		// Format the output
+		fmt.Printf("Method: %-7s Path: %s\n", method, fullPath)
+		return nil
+	})
+}
+
+type logWriter struct {
+	logger *slog.Logger
+}
+
+func (lw *logWriter) Write(p []byte) (n int, err error) {
+	lw.logger.Error("http server error", slog.String("error", string(p)))
+	return len(p), nil
 }

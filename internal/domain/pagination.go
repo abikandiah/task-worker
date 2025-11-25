@@ -17,11 +17,11 @@ const (
 
 // CursorInput defines the data needed to request the next/previous page.
 type CursorInput struct {
-	AfterID   uuid.UUID     // The ID of the last item received (for "Next Page")
-	BeforeID  uuid.UUID     // The ID of the first item received (for "Previous Page")
-	Limit     int           // The number of items to fetch (PageSize)
-	SortField string        // The field used for ordering (e.g., "id" or "created_at")
-	SortDir   SortDirection // "ASC" or "DESC"
+	AfterID   uuid.UUID     `json:"afterId,omitempty"`
+	BeforeID  uuid.UUID     `json:"beforeId,omitempty"`
+	Limit     int           `json:"limit,omitempty"`
+	SortField string        `json:"sortField,omitempty"`
+	SortDir   SortDirection `json:"sortDir,omitempty"`
 }
 
 func (c *CursorInput) SetDefaults() {
@@ -55,9 +55,9 @@ func (c *CursorInput) HasBeforeCursor() bool {
 // CursorOutput includes cursors for the next/previous request.
 type CursorOutput[T any] struct {
 	// NextCursor will be uuid.Nil if no next page exists.
-	NextCursor uuid.UUID `json:"nextCursor"`
+	NextCursor *uuid.UUID `json:"nextCursor,omitempty"`
 	// PrevCursor will be uuid.Nil if this is the first page.
-	PrevCursor uuid.UUID `json:"prevCursor"`
-	Limit      int       `json:"limit"`
-	Data       []T       `json:"data"`
+	PrevCursor *uuid.UUID `json:"prevCursor,omitempty"`
+	Limit      int        `json:"limit"`
+	Data       []T        `json:"data"`
 }

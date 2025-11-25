@@ -97,8 +97,8 @@ func (repo *MockRepo) GetAllJobs(ctx context.Context, input *domain.CursorInput)
 
 	// Return the strongly-typed generic output
 	return &domain.CursorOutput[domain.Job]{
-		NextCursor: nextCursor,
-		PrevCursor: prevCursor,
+		NextCursor: &nextCursor,
+		PrevCursor: &prevCursor,
 		Limit:      input.Limit,
 		Data:       pageJobs,
 	}, nil

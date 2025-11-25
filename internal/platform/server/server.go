@@ -85,7 +85,7 @@ func (server *Server) setupMiddleware() {
 
 	// Custom middleware
 	server.router.Use(server.loggerMiddleware)
-	server.router.Use(server.corsMiddleware)
+	server.router.Use(configureCORSMiddleware(server.serverConfig.Cors))
 	server.router.Use(server.rateLimitMiddleware)
 	server.router.Use(server.contentTypeMiddleware)
 

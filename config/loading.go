@@ -101,6 +101,13 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.idle_timeout", 60*time.Second)
 	v.SetDefault("server.timeout", 60*time.Second)
 	v.SetDefault("server.shutdown_timeout", 15*time.Second)
+	// --- CORS Configuration Defaults ---
+	v.SetDefault("server.cors.enabled", false)
+	v.SetDefault("server.cors.allowed_origins", []string{"*"})
+	v.SetDefault("server.cors.allowed_methods", []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
+	v.SetDefault("server.cors.allowed_headers", []string{"Content-Type", "Authorization"})
+	v.SetDefault("server.cors.allow_credentials", false)
+	v.SetDefault("server.cors.max_age", 1*time.Hour)
 
 	v.SetDefault("database.host", "localhost")
 	v.SetDefault("database.port", 5432)

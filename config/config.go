@@ -28,6 +28,16 @@ type ServerConfig struct {
 	IdleTimeout     time.Duration `mapstructure:"idle_timeout"`
 	Timeout         time.Duration `mapstructure:"timeout"`
 	ShutdownTimeout time.Duration `mapstructure:"shutdown_timeout"`
+	Cors            *CORSConfig   `mapstructure:"cors"`
+}
+
+type CORSConfig struct {
+	Enabled          bool          `mapstructure:"enabled"`
+	AllowedOrigins   []string      `mapstructure:"allowed_origins"`
+	AllowedMethods   []string      `mapstructure:"allowed_methods"`
+	AllowedHeaders   []string      `mapstructure:"allowed_headers"`
+	AllowCredentials bool          `mapstructure:"allow_credentials"`
+	MaxAge           time.Duration `mapstructure:"max_age"`
 }
 
 type DatabaseConfig struct {
@@ -67,6 +77,7 @@ func (c *ServerConfig) LogValue() slog.Value {
 		slog.String("idle_timeout", c.IdleTimeout.String()),
 		slog.String("timeout", c.Timeout.String()),
 		slog.String("shutdown_timeout", c.ShutdownTimeout.String()),
+		slog.Any("cors", c.Cors),
 	)
 }
 
@@ -85,6 +96,14 @@ func (c *RateLimitConfig) LogValue() slog.Value {
 	return slog.GroupValue(
 		slog.Int("requests_per_second", c.RequestsPerSecond),
 		slog.Int("burst", c.Burst),
+	)
+}
+
+func (c *CORSConfig) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Bool("enabled", c.Enabled),
+		slog.String("max_age", c.MaxAge.String()),
+		slog.Any("allowed_origins", c.AllowedOrigins),
 	)
 }
 

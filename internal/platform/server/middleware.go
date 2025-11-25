@@ -5,9 +5,12 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"time"
 
+	"github.com/abikandiah/task-worker/config"
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rs/cors"
 )
 
 const requestLoggerKey domain.LogKey = "requestLogger"
@@ -59,18 +62,20 @@ func (server *Server) contentTypeMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// corsMiddleware adds CORS headers
-func (server *Server) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
+func configureCORSMiddleware(cfg *config.CORSConfig) func(http.Handler) http.Handler {
+	if !cfg.Enabled {
+		return func(next http.Handler) http.Handler {
+			return next // Simply pass the request along
 		}
+	}
 
-		next.ServeHTTP(w, r)
-	})
+	options := cors.Options{
+		AllowedOrigins:   cfg.AllowedOrigins,
+		AllowedMethods:   cfg.AllowedMethods,
+		AllowedHeaders:   cfg.AllowedHeaders,
+		AllowCredentials: cfg.AllowCredentials,
+		MaxAge:           int(time.Second * cfg.MaxAge),
+	}
+	c := cors.New(options)
+	return c.Handler
 }

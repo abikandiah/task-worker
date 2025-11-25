@@ -34,6 +34,27 @@ type JobConfig struct {
 	MaxParallelTasks    int  `json:"maxParallelTasks"`
 }
 
+func NewDefaultJobConfig() *JobConfig {
+	submission := IdentitySubmission{
+		Name: "Default JobConfig",
+	}
+	identity := Identity{
+		IdentitySubmission: submission,
+		ID:                 uuid.New(),
+	}
+	identityVersion := IdentityVersion{
+		Identity: identity,
+		Version:  "1.0",
+	}
+	return &JobConfig{
+		IdentityVersion:     identityVersion,
+		JobTimeout:          600,
+		TaskTimeout:         120,
+		EnableParallelTasks: true,
+		MaxParallelTasks:    2,
+	}
+}
+
 type JobRepository interface {
 	GetAllJobs(ctx context.Context, input *CursorInput) (*CursorOutput[Job], error)
 

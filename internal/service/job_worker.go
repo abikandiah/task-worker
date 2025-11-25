@@ -41,15 +41,22 @@ func (worker *JobWorker) Run(ctx context.Context) {
 }
 
 func (worker *JobWorker) runJob(ctx context.Context, job *domain.Job) error {
+	// Get config, revert to default if none set
+
+	var config *domain.JobConfig
+	if job.ConfigID == uuid.Nil {
+		config = domain.NewDefaultJobConfig()
+	} else {
+		cfg, err := worker.repository.GetJobConfig(ctx, job.ConfigID)
+		if err != nil {
+			worker.logger.ErrorContext(ctx, "Failed to fetch config", slog.Any("error", err))
+			return fmt.Errorf("failed to fetch config %s: %w", job.ConfigID, err)
+		}
+		config = cfg
+	}
+
 	ctx = context.WithValue(ctx, domain.LKeys.JobName, job.Name)
 	ctx = context.WithValue(ctx, domain.LKeys.ConfigID, job.ConfigID)
-
-	// Get config
-	config, err := worker.repository.GetJobConfig(ctx, job.ConfigID)
-	if err != nil {
-		worker.logger.ErrorContext(ctx, "Failed to fetch config", slog.Any("error", err))
-		return fmt.Errorf("failed to fetch config %s: %w", job.ConfigID, err)
-	}
 
 	ctxTimeout, cancel := context.WithTimeoutCause(ctx, (time.Duration(config.JobTimeout) * time.Second), ErrJobTimedOut)
 	defer cancel()
@@ -86,7 +93,7 @@ func (worker *JobWorker) executeJob(ctx context.Context, job *domain.Job, config
 	}()
 
 	// Get TaskRuns
-	taskRuns, err := worker.repository.GetTaskRuns(ctx, job.ConfigID)
+	taskRuns, err := worker.repository.GetTaskRuns(ctx, job.ID)
 	if err != nil {
 		worker.logger.ErrorContext(ctx, "Failed to fetch taskRuns", slog.Any("error", err))
 		return fmt.Errorf("failed to fetch taskRuns %s: %w", job.ID, err)

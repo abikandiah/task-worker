@@ -25,3 +25,15 @@ var LKeys = LogKeys{
 	Method:     "method",
 	Path:       "path",
 }
+
+var ContextLKeys = []LogKey{
+	LKeys.JobID,
+	LKeys.JobName,
+	LKeys.TaskID,
+	LKeys.TaskName,
+	LKeys.ConfigID,
+	LKeys.ConfigName,
+	LKeys.RequestID,
+	LKeys.Method,
+	LKeys.Path,
+}

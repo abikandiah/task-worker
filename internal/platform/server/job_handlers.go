@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -57,7 +58,8 @@ func (server *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server.logger.InfoContext(ctx, "job submitted successfully", slog.String(string(domain.LKeys.JobID), job.ID.String()))
+	ctx = context.WithValue(ctx, domain.LKeys.JobID, job.ID)
+	server.logger.InfoContext(ctx, "job submitted successfully")
 
 	server.respondJSON(w, http.StatusCreated, job)
 }

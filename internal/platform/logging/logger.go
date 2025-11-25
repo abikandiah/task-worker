@@ -25,17 +25,17 @@ func SetupLogger(config LoggerParams) *slog.Logger {
 		ReplaceAttr: replaceAttrFunc,
 	}
 
-	var handler slog.Handler
+	var baseHandler slog.Handler
 
 	if config.Environment == "development" || config.Environment == "dev" {
 		options.AddSource = true
-		handler = slog.NewTextHandler(os.Stderr, options)
+		baseHandler = slog.NewTextHandler(os.Stderr, options)
 	} else {
-		handler = slog.NewJSONHandler(os.Stderr, options)
+		baseHandler = slog.NewJSONHandler(os.Stderr, options)
 	}
 
 	// Create logger with default attributes
-	logger := slog.New(handler)
+	logger := slog.New(NewContextHandler(baseHandler))
 	slog.SetDefault(logger)
 
 	// Log initialization

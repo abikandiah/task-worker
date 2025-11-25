@@ -17,12 +17,12 @@ type DurationDependencies struct {
 	Logger *slog.Logger
 }
 
-type DurationSendTask struct {
+type DurationTask struct {
 	*DurationParams
 	deps *DurationDependencies
 }
 
-func DurationSendConstructor(params *DurationParams, deps *domain.GlobalDependencies) (Task, error) {
+func DurationConstructor(params *DurationParams, deps *domain.GlobalDependencies) (Task, error) {
 	if params.Length < 0 {
 		return nil, fmt.Errorf("duration must be greater than 0")
 	}
@@ -31,13 +31,13 @@ func DurationSendConstructor(params *DurationParams, deps *domain.GlobalDependen
 		Logger: deps.Logger,
 	}
 
-	return &DurationSendTask{
+	return &DurationTask{
 		DurationParams: params,
 		deps:           taskDeps,
 	}, nil
 }
 
-func (task *DurationSendTask) Execute(ctx context.Context) (any, error) {
+func (task *DurationTask) Execute(ctx context.Context) (any, error) {
 	task.deps.Logger.InfoContext(ctx, "starting duration task")
 	task.deps.Logger.InfoContext(ctx, fmt.Sprintf("waiting for %d", task.Length))
 

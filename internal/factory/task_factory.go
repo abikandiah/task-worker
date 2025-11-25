@@ -27,6 +27,7 @@ func NewTaskFactory(deps *domain.GlobalDependencies) *TaskFactory {
 
 	Register(taskFactory, "email_send", task.EmailSendConstructor)
 	Register(taskFactory, "chat", task.ChatConstructor)
+	Register(taskFactory, "duration", task.DurationConstructor)
 
 	return taskFactory
 }

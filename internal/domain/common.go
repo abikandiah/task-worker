@@ -6,8 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type LogKey string
-
 type Identity struct {
 	IdentitySubmission
 	ID uuid.UUID `json:"id"`

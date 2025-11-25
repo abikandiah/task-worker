@@ -1,10 +1,13 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 
+	"github.com/abikandiah/task-worker/internal/domain"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
@@ -12,6 +15,20 @@ import (
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Message string `json:"message,omitempty"`
+}
+
+func (server *Server) updateRequestContextWithID(idKey string, logKey domain.LogKey) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			id := parseUUIDOrDefault(chi.URLParam(r, idKey))
+
+			if id != uuid.Nil {
+				// Store ID in context
+				ctx := context.WithValue(r.Context(), logKey, id)
+				next.ServeHTTP(w, r.WithContext(ctx))
+			}
+		})
+	}
 }
 
 // Send a JSON response

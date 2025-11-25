@@ -112,25 +112,28 @@ func (server *Server) setupRoutes() {
 		// Authenticated routes
 		r.Use(server.authenticateMiddleware)
 
-		// Job endpoints
 		r.Route("/jobs", server.setupJobRoutes())
+		r.Route("/jobs/configs/", server.setupJobConfigRoutes())
 	})
 }
 
 func (server *Server) printRoutes(prefix string) {
 	// Walk through the router's handler structure
 	chi.Walk(server.router, func(method string, routePath string, handler http.Handler, middlewares ...func(http.Handler) http.Handler) error {
-		// Combine the prefix (from parent routes) with the routePath
 		fullPath := prefix + routePath
-
-		// Skip routes that are just prefixes or placeholders
 		if fullPath == "" {
 			return nil
 		}
-
-		// Format the output
 		fmt.Printf("Method: %-7s Path: %s\n", method, fullPath)
 		return nil
+	})
+}
+
+// Health check
+func (server *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	server.respondJSON(w, http.StatusOK, map[string]string{
+		"status": "ok",
+		"time":   time.Now().Format(time.RFC3339),
 	})
 }
 

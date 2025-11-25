@@ -27,7 +27,7 @@ var ErrTaskTimedOut = errors.New("task timed out")
 func (worker *TaskWorker) Run(ctx context.Context) {
 	for request := range worker.taskCh {
 
-		ctx := context.WithValue(ctx, LKeys.TaskID, request.data.ID)
+		ctx := context.WithValue(ctx, domain.LKeys.TaskID, request.data.ID)
 		request.errCh <- worker.runTask(ctx, request.data, request.timeout)
 	}
 }

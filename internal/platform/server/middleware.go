@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"log/slog"
 	"mime"
 	"net/http"
 	"time"
@@ -13,30 +12,15 @@ import (
 	"github.com/rs/cors"
 )
 
-const requestLoggerKey domain.LogKey = "requestLogger"
-
 func (server *Server) loggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Create request-specific logger based on logger
+		// Update request context with values
 		requestID := middleware.GetReqID(r.Context())
-		requestLogger := server.logger.With(
-			slog.String("request_id", requestID),
-			slog.String("method", r.Method),
-			slog.String("path", r.URL.Path),
-		)
-
-		// Store requestLogger in context and update request context
-		ctx := context.WithValue(r.Context(), requestLoggerKey, requestLogger)
+		ctx := context.WithValue(r.Context(), domain.LKeys.RequestID, requestID)
+		ctx = context.WithValue(ctx, domain.LKeys.Method, r.Method)
+		ctx = context.WithValue(ctx, domain.LKeys.Path, r.URL.Path)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-// Get logger for use in handlers/response functions
-func GetRequestLogger(ctx context.Context) *slog.Logger {
-	if logger, ok := ctx.Value(requestLoggerKey).(*slog.Logger); ok {
-		return logger
-	}
-	return slog.Default()
 }
 
 func (server *Server) contentTypeMiddleware(next http.Handler) http.Handler {

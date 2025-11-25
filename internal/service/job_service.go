@@ -107,7 +107,7 @@ func (service *JobService) SubmitJob(ctx context.Context, submission *domain.Job
 		return job, fmt.Errorf("failed to save job: %w", err)
 	}
 
-	ctx = context.WithValue(ctx, LKeys.JobID, job.ID)
+	ctx = context.WithValue(ctx, domain.LKeys.JobID, job.ID)
 
 	// Populate JobID
 	for i := range submission.TaskRuns {
@@ -130,17 +130,22 @@ func (service *JobService) GetJob(ctx context.Context, jobID uuid.UUID) (*domain
 	return job, err
 }
 
-func (service *JobService) GetJobStatus(ctx context.Context, jobID uuid.UUID) (domain.ExecutionState, error) {
+func (service *JobService) GetJobStatus(ctx context.Context, jobID uuid.UUID) (*domain.JobStatus, error) {
 	if job, err := service.GetJob(ctx, jobID); err != nil {
-		return domain.StateError, err
+		return nil, err
 	} else {
-		return job.State, nil
+		return &job.JobStatus, nil
 	}
 }
 
 func (service *JobService) GetAllJobs(ctx context.Context, input *domain.CursorInput) (*domain.CursorOutput[domain.Job], error) {
 	output, err := service.repository.GetAllJobs(ctx, input)
 	return output, err
+}
+
+func (service *JobService) GetJobConfig(ctx context.Context, configID uuid.UUID) (*domain.JobConfig, error) {
+	job, err := service.repository.GetJobConfig(ctx, configID)
+	return job, err
 }
 
 func (service *JobService) Close(ctx context.Context) {

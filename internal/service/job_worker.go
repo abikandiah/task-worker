@@ -22,7 +22,7 @@ var ErrJobTimedOut = errors.New("task timed out")
 
 func (worker *JobWorker) Run(ctx context.Context) {
 	for jobID := range worker.jobCh {
-		ctx := context.WithValue(ctx, LKeys.JobID, jobID)
+		ctx := context.WithValue(ctx, domain.LKeys.JobID, jobID)
 
 		// Get and run job
 		job, err := worker.repository.GetJob(ctx, jobID)
@@ -41,8 +41,8 @@ func (worker *JobWorker) Run(ctx context.Context) {
 }
 
 func (worker *JobWorker) runJob(ctx context.Context, job *domain.Job) error {
-	ctx = context.WithValue(ctx, LKeys.JobName, job.Name)
-	ctx = context.WithValue(ctx, LKeys.ConfigID, job.ConfigID)
+	ctx = context.WithValue(ctx, domain.LKeys.JobName, job.Name)
+	ctx = context.WithValue(ctx, domain.LKeys.ConfigID, job.ConfigID)
 
 	// Get config
 	config, err := worker.repository.GetJobConfig(ctx, job.ConfigID)

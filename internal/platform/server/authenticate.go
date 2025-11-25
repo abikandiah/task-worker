@@ -41,7 +41,6 @@ func (server *Server) authenticateMiddleware(next http.Handler) http.Handler {
 
 func (server *Server) validateToken(token string) (*UserInfo, error) {
 	_, ok := server.apiKeys[token]
-	server.logger.Info("", "server", server.apiKeys)
 	if !ok {
 		return nil, errors.New("invalid API key")
 	}

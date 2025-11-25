@@ -74,6 +74,7 @@ func (server *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(submission.TaskRuns) == 0 {
+		logger.Warn("job taskRuns missing")
 		server.respondError(w, http.StatusBadRequest, "job taskRuns is required")
 		return
 	}

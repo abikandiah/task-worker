@@ -9,25 +9,25 @@ import (
 
 type Job struct {
 	Identity
-	ConfigID   uuid.UUID
-	State      ExecutionState
-	Progress   float32
-	SubmitDate time.Time
-	StartDate  time.Time
-	EndDate    time.Time
+	ConfigID   uuid.UUID      `json:"configId"`
+	State      ExecutionState `json:"state"`
+	Progress   float32        `json:"progress"`
+	SubmitDate time.Time      `json:"submitDate"`
+	StartDate  time.Time      `json:"startDate,omitempty"`
+	EndDate    time.Time      `json:"endDate,omitempty"`
 }
 
 type JobSubmission struct {
 	IdentitySubmission
-	TaskRuns []TaskRun
+	TaskRuns []TaskRun `json:"taskRuns"`
 }
 
 type JobConfig struct {
 	IdentityVersion
-	JobTimeout          int
-	TaskTimeout         int
-	EnableParallelTasks bool
-	MaxParallelTasks    int
+	JobTimeout          int  `json:"jobTimeout"`
+	TaskTimeout         int  `json:"taskTimeout"`
+	EnableParallelTasks bool `json:"enableParallelTasks"`
+	MaxParallelTasks    int  `json:"maxParallelTasks"`
 }
 
 type JobRepository interface {

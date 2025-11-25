@@ -10,17 +10,17 @@ type LogKey string
 
 type Identity struct {
 	IdentitySubmission
-	ID uuid.UUID
+	ID uuid.UUID `json:"id"`
 }
 
 type IdentitySubmission struct {
-	Name        string
-	Description string
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type IdentityVersion struct {
 	Identity
-	Version string
+	Version string `json:"version"`
 }
 
 // State

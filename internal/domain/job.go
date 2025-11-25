@@ -31,6 +31,8 @@ type JobConfig struct {
 }
 
 type JobRepository interface {
+	GetAllJobs(ctx context.Context, input *CursorInput) (*CursorOutput[Job], error)
+
 	GetJob(ctx context.Context, jobID uuid.UUID) (*Job, error)
 	SaveJob(ctx context.Context, job Job) (*Job, error)
 

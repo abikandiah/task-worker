@@ -3,6 +3,7 @@ package mock
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 
 	"github.com/abikandiah/task-worker/internal/domain"
@@ -22,6 +23,7 @@ type MockRepo struct {
 	FailSaveJob      error
 	FailSaveTaskRuns error
 	FailGetJob       error
+	FailGetJobs      error
 }
 
 func NewMockRepo() *MockRepo {
@@ -30,6 +32,76 @@ func NewMockRepo() *MockRepo {
 		configs:  make(map[uuid.UUID]*domain.JobConfig),
 		taskRuns: make(map[uuid.UUID]*domain.TaskRun),
 	}
+}
+
+func (repo *MockRepo) GetAllJobs(ctx context.Context, input *domain.CursorInput) (*domain.CursorOutput[domain.Job], error) {
+	repo.mu.RLock()
+	defer repo.mu.RUnlock()
+
+	input.SetDefaults()
+
+	allJobs := make([]domain.Job, 0, len(repo.jobs))
+	for _, job := range repo.jobs {
+		allJobs = append(allJobs, *job)
+	}
+
+	// Sort based on SortField and SortDir
+	sort.Slice(allJobs, func(i, j int) bool {
+		// Only handling ID for simplicity
+		if input.SortDir == domain.SortASC {
+			return allJobs[i].ID.String() < allJobs[j].ID.String()
+		}
+		return allJobs[i].ID.String() > allJobs[j].ID.String()
+	})
+
+	// Find the Starting Index based on the cursor
+	startIndex := 0
+	if input.HasAfterCursor() {
+		// Find the index of the cursor ID
+		for i, job := range allJobs {
+			if job.ID == input.AfterID {
+				// Start index is the element *after* the cursor
+				startIndex = i + 1
+				break
+			}
+		}
+		// If the cursor wasn't found, treat it as the first page (startIndex = 0)
+	}
+
+	endIndex := startIndex + input.Limit
+
+	// Adjust bounds
+	if startIndex >= len(allJobs) {
+		// No more records
+		return &domain.CursorOutput[domain.Job]{Data: []domain.Job{}}, nil
+	}
+	if endIndex > len(allJobs) {
+		endIndex = len(allJobs)
+	}
+
+	// The resulting page of jobs
+	pageJobs := allJobs[startIndex:endIndex]
+
+	// Calculate Cursors for the Output
+	nextCursor := uuid.Nil
+	if len(pageJobs) > 0 && endIndex < len(allJobs) {
+		// The next cursor is the ID of the last element in the *current* page
+		nextCursor = pageJobs[len(pageJobs)-1].ID
+	}
+
+	prevCursor := uuid.Nil
+	if startIndex > 0 {
+		// The previous cursor is the ID of the first element in the *current* page
+		prevCursor = pageJobs[0].ID
+	}
+
+	// Return the strongly-typed generic output
+	return &domain.CursorOutput[domain.Job]{
+		NextCursor: nextCursor,
+		PrevCursor: prevCursor,
+		Limit:      input.Limit,
+		Data:       pageJobs,
+	}, nil
 }
 
 func (repo *MockRepo) GetJob(ctx context.Context, jobID uuid.UUID) (*domain.Job, error) {
@@ -65,6 +137,18 @@ func (repo *MockRepo) SaveJob(ctx context.Context, job domain.Job) (*domain.Job,
 
 	repo.jobs[jobCopy.ID] = &jobCopy
 	return &jobCopy, nil
+}
+
+func (repo *MockRepo) GetAllJobConfigs() []*domain.JobConfig {
+	repo.mu.RLock()
+	defer repo.mu.RUnlock()
+
+	configs := make([]*domain.JobConfig, 0, len(repo.configs))
+	for _, config := range repo.configs {
+		configs = append(configs, config)
+	}
+
+	return configs
 }
 
 func (repo *MockRepo) GetJobConfig(ctx context.Context, configID uuid.UUID) (*domain.JobConfig, error) {

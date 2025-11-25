@@ -130,6 +130,11 @@ func (service *JobService) GetJob(ctx context.Context, jobID uuid.UUID) (*domain
 	return job, err
 }
 
+func (service *JobService) GetAllJobs(ctx context.Context, input *domain.CursorInput) (*domain.CursorOutput[domain.Job], error) {
+	output, err := service.repository.GetAllJobs(ctx, input)
+	return output, err
+}
+
 func (service *JobService) Close(ctx context.Context) {
 	service.logger.InfoContext(ctx, "Closing job service")
 	close(service.jobCh)

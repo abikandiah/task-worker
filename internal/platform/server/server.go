@@ -1,13 +1,10 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/abikandiah/task-worker/config"
@@ -54,21 +51,23 @@ func NewServer(deps *ServerParams) *http.Server {
 		apiKeys: make(map[string]struct{}),
 	}
 
-	server.apiKeys[os.Getenv("DEV_SECRET")] = struct{}{}
+	server.apiKeys[os.Getenv("WORKER_SECRET")] = struct{}{}
 	server.setupMiddleware()
 	server.setupRoutes()
 
 	config := server.serverConfig
 	httpServer := &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", config.Host, config.Port),
-		Handler:      server,
-		ReadTimeout:  config.ReadTimeout * time.Second,
-		WriteTimeout: config.WriteTimeout * time.Second,
-		IdleTimeout:  config.IdleTimeout * time.Second,
+		Addr:              fmt.Sprintf("%s:%d", config.Host, config.Port),
+		Handler:           server,
+		ReadTimeout:       config.ReadTimeout * time.Second,
+		WriteTimeout:      config.WriteTimeout * time.Second,
+		IdleTimeout:       config.IdleTimeout * time.Second,
+		MaxHeaderBytes:    1 << 20,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	server.logger.Info("server initialized", "config", *config)
-	server.logger.Info("rate limiter initialized", "requests_per_second", server.limiter.rate, "burst", server.limiter.burst)
+	server.logger.Info("server initialized", slog.Any("server_config", config))
+	server.logger.Info("rate limiter initialized", slog.Any("rate_limit_config", deps.RateLimitConfig))
 
 	return httpServer
 }
@@ -77,73 +76,43 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	server.router.ServeHTTP(w, r)
 }
 
-// Middleware chain
 func (server *Server) setupMiddleware() {
 	// Chi's built-in middleware
+	server.router.Use(middleware.Recoverer)
 	server.router.Use(middleware.RequestID)
 	server.router.Use(middleware.RealIP)
-	server.router.Use(middleware.Logger)
-	server.router.Use(middleware.Recoverer)
+	server.router.Use(middleware.StripSlashes)
 
 	// Custom middleware
+	server.router.Use(server.loggerMiddleware)
 	server.router.Use(server.corsMiddleware)
 	server.router.Use(server.rateLimitMiddleware)
+	server.router.Use(server.contentTypeMiddleware)
 
 	// Timeout middleware
 	server.router.Use(middleware.Timeout(server.serverConfig.Timeout * time.Second))
 }
 
-func (s *Server) contentTypeMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost || r.Method == http.MethodPut {
-			contentType := r.Header.Get("Content-Type")
-			if !strings.HasPrefix(contentType, "application/json") {
-				s.respondError(w, http.StatusUnsupportedMediaType,
-					"Content-Type must be application/json")
-				return
-			}
-		}
-		next.ServeHTTP(w, r)
+// Set up API routes
+func (server *Server) setupRoutes() {
+	server.router.Get("/health", server.handleHealth)
+
+	server.router.Route("/api/v1", func(r chi.Router) {
+		// Authenticate routes
+		r.Use(server.authenticateMiddleware)
+
+		// Job endpoints
+		r.Route("/job", func(r chi.Router) {
+			r.Get("/", server.handleGetJobs)
+			// r.Post("/", server.createItem)
+
+			// r.Route("/{id}", func(r chi.Router) {
+			// r.Get("/", server.getItem)
+			// r.Put("/", server.updateItem)
+			// r.Delete("/", server.deleteItem)
+		})
 	})
-}
 
-// corsMiddleware adds CORS headers
-func (s *Server) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// Health check
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	s.respondJSON(w, http.StatusOK, map[string]string{
-		"status": "ok",
-		"time":   time.Now().Format(time.RFC3339),
-	})
-}
-
-// Send a JSON response
-func (server *Server) respondJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		log.Printf("error encoding response: %v", err)
-	}
-}
-
-// Send an error response
-func (server *Server) respondError(w http.ResponseWriter, status int, message string) {
-	server.respondJSON(w, status, ErrorResponse{
-		Error:   http.StatusText(status),
-		Message: message,
-	})
+	// Easy to add more resource groups
+	// r.Route("/users", func(r chi.Router) { ... })
 }

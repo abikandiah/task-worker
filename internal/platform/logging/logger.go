@@ -20,26 +20,18 @@ func SetupLogger(config LoggerParams) *slog.Logger {
 	levelVar.Set(logLevel)
 
 	// Output format based on environment
+	options := &slog.HandlerOptions{
+		Level:       levelVar,
+		ReplaceAttr: replaceAttrFunc,
+	}
+
 	var handler slog.Handler
 
 	if config.Environment == "development" || config.Environment == "dev" {
-		// Use text handler for better readability in development
-		handler = slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level:     levelVar,
-			AddSource: true,
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-				a = shortenSource(groups, a)
-				a = replaceEmptyAttr(groups, a)
-				return a
-			},
-		})
+		options.AddSource = true
+		handler = slog.NewTextHandler(os.Stderr, options)
 	} else {
-		// Use JSON handler for production (easier to parse and index)
-		handler = slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-			Level:       levelVar,
-			AddSource:   false,
-			ReplaceAttr: replaceEmptyAttr,
-		})
+		handler = slog.NewJSONHandler(os.Stderr, options)
 	}
 
 	// Create logger with default attributes
@@ -47,8 +39,7 @@ func SetupLogger(config LoggerParams) *slog.Logger {
 	slog.SetDefault(logger)
 
 	// Log initialization
-	logger.Info("logger initialized",
-		slog.String("level", config.Level),
+	logger.Info("logger and config initialized",
 		slog.String("environment", config.Environment),
 		slog.String("service", config.ServiceName),
 		slog.String("version", config.Version),
@@ -58,11 +49,27 @@ func SetupLogger(config LoggerParams) *slog.Logger {
 	return logger
 }
 
-func shortenSource(_ []string, a slog.Attr) slog.Attr {
-	if a.Key != slog.SourceKey {
-		return a
+func replaceAttrFunc(groups []string, a slog.Attr) slog.Attr {
+	// Shorten source
+	if a.Key == slog.SourceKey {
+		return shortenSource(groups, a)
 	}
+	// Format string output
+	if a.Value.Kind() == slog.KindDuration {
+		return replaceDuration(groups, a)
+	}
+	// Hide empty settings
+	if a.Value.Kind() == slog.KindString && a.Value.String() == "" {
+		return slog.Attr{}
+	}
+	// // Format for UTC
+	// if a.Key == slog.TimeKey && len(groups) == 0 {
+	// 	return replaceTimeAttr(groups, a)
+	// }
+	return a
+}
 
+func shortenSource(_ []string, a slog.Attr) slog.Attr {
 	source, ok := a.Value.Any().(*slog.Source)
 	if !ok {
 		return a
@@ -83,13 +90,21 @@ func shortenSource(_ []string, a slog.Attr) slog.Attr {
 	return a
 }
 
-// Return empty attr to hide from log output
-func replaceEmptyAttr(groups []string, a slog.Attr) slog.Attr {
-	if a.Value.Kind() == slog.KindString && a.Value.String() == "" {
-		return slog.Attr{}
-	}
-	return a
+func replaceDuration(_ []string, a slog.Attr) slog.Attr {
+	duration := a.Value.Duration()
+	// Return new Attr with string value
+	return slog.String(a.Key, duration.String())
 }
+
+// func replaceTimeAttr(_ []string, a slog.Attr) slog.Attr {
+// 	t := a.Value.Time()
+// 	t = t.UTC()
+// 	// 2. Explicitly format the UTC time as an ISO 8601 string with 'Z'
+// 	// Note: The time.RFC3339Nano constant is generally preferred
+// 	// and includes the 'Z' to denote UTC.
+// 	a.Value = slog.StringValue(t.Format(time.RFC3339Nano))
+// 	return a
+// }
 
 func getHandlerType(config *LoggerParams) string {
 	if config.Environment == "development" || config.Environment == "dev" {

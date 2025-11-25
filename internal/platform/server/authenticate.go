@@ -20,7 +20,7 @@ func (server *Server) authenticateMiddleware(next http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" || len(authHeader) < 7 || authHeader[:6] != "Bearer" {
 			http.Error(w, "Invalid authorization format", http.StatusUnauthorized)
-			return // Stop execution
+			return
 		}
 
 		token := authHeader[7:]
@@ -29,12 +29,11 @@ func (server *Server) authenticateMiddleware(next http.Handler) http.Handler {
 		user, err := server.validateToken(token)
 		if err != nil {
 			http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
-			return // Stop execution
+			return
 		}
 
 		// Set authenticated user in context
 		ctx := context.WithValue(r.Context(), userLogKey, user)
-		// Update context and proceed
 		r = r.WithContext(ctx)
 		next.ServeHTTP(w, r)
 	})

@@ -9,7 +9,6 @@ import (
 
 	"github.com/abikandiah/task-worker/config"
 	"github.com/abikandiah/task-worker/internal/domain"
-	"github.com/abikandiah/task-worker/internal/factory"
 	"github.com/google/uuid"
 )
 
@@ -25,13 +24,13 @@ type JobService struct {
 type jobServiceDependencies struct {
 	config      *config.WorkerConfig
 	repository  domain.ServiceRepository
-	taskFactory *factory.TaskFactory
+	taskFactory domain.TaskFactory
 }
 
 type JobServiceParams struct {
 	Config      *config.WorkerConfig
 	Repository  domain.ServiceRepository
-	TaskFactory *factory.TaskFactory
+	TaskFactory domain.TaskFactory
 }
 
 func NewJobService(params *JobServiceParams) *JobService {

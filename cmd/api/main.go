@@ -35,12 +35,13 @@ func main() {
 	factory.RegisterDepdenencies(taskFactory, deps)
 	factory.RegisterTasks(taskFactory)
 
-	repo := mock.NewMockRepo()
+	deps.TaskFactory = taskFactory
+	deps.Repository = mock.NewMockRepo()
 
 	jobService := service.NewJobService(&service.JobServiceParams{
 		Config:      deps.Config.Worker,
-		TaskFactory: taskFactory,
-		Repository:  repo,
+		TaskFactory: deps.TaskFactory,
+		Repository:  deps.Repository,
 	})
 
 	ctx := context.Background()

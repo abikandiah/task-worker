@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
+	"github.com/abikandiah/task-worker/internal/domain"
 )
 
 type DurationParams struct {
@@ -18,7 +20,7 @@ type DurationTask struct {
 	*DurationDependencies
 }
 
-func DurationConstructor(params *DurationParams, deps *DurationDependencies) (Task, error) {
+func DurationConstructor(params *DurationParams, deps *DurationDependencies) (domain.Task, error) {
 	if params == nil {
 		params = &DurationParams{Length: 10}
 	}

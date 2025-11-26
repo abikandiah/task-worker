@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/abikandiah/task-worker/internal/domain"
 )
 
 type ChatParams struct {
@@ -17,7 +19,7 @@ type ChatTask struct {
 	*ChatTaskDependencies
 }
 
-func ChatConstructor(params *ChatParams, deps *ChatTaskDependencies) (Task, error) {
+func ChatConstructor(params *ChatParams, deps *ChatTaskDependencies) (domain.Task, error) {
 	if params == nil {
 		params = &ChatParams{Message: "default-chat"}
 	}

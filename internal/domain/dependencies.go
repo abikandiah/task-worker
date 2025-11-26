@@ -5,6 +5,7 @@ import (
 )
 
 type GlobalDependencies struct {
-	Config     *config.Config
-	Repository ServiceRepository
+	Config      *config.Config
+	Repository  ServiceRepository
+	TaskFactory TaskFactory
 }

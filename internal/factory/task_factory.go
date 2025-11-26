@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/abikandiah/task-worker/internal/task"
+	"github.com/abikandiah/task-worker/internal/domain"
 )
 
-type TaskConstructor[P any, D any] func(params P, deps D) (task.Task, error)
+type TaskConstructor[P any, D any] func(params P, deps D) (domain.Task, error)
 
 // TaskFactory manages task registration, dependency injection, and task creation.
 type TaskFactory struct {
@@ -77,7 +77,7 @@ func Register[P any, D any](factory *TaskFactory, name string, constructor TaskC
 	factory.depTypes[name] = depType
 
 	// Create a wrapper that handles dependency resolution and injection
-	wrapper := func(params P) (task.Task, error) {
+	wrapper := func(params P) (domain.Task, error) {
 		// Resolve dependencies
 		deps, err := factory.resolveDependencies(name, depType)
 		if err != nil {
@@ -164,7 +164,7 @@ func (f *TaskFactory) resolveStructDependencies(taskName string, structType refl
 // - A concrete struct/pointer that matches the expected type
 // - Raw JSON bytes that will be deserialized to the expected type
 // - nil for tasks that don't require parameters
-func (f *TaskFactory) CreateTask(name string, params any) (task.Task, error) {
+func (f *TaskFactory) CreateTask(name string, params any) (domain.Task, error) {
 	if name == "" {
 		return nil, fmt.Errorf("task name cannot be empty")
 	}
@@ -200,7 +200,7 @@ func (f *TaskFactory) CreateTask(name string, params any) (task.Task, error) {
 }
 
 // CreateTaskFromJSON creates a task from raw JSON data.
-func (f *TaskFactory) CreateTaskFromJSON(name string, jsonData []byte) (task.Task, error) {
+func (f *TaskFactory) CreateTaskFromJSON(name string, jsonData []byte) (domain.Task, error) {
 	return f.CreateTask(name, jsonData)
 }
 
@@ -239,7 +239,7 @@ func (f *TaskFactory) deserializeParams(taskName string, expectedType reflect.Ty
 }
 
 // invokeConstructor uses reflection to call a constructor with dynamic params.
-func (f *TaskFactory) invokeConstructor(taskName string, constructorAny any, params any) (task.Task, error) {
+func (f *TaskFactory) invokeConstructor(taskName string, constructorAny any, params any) (domain.Task, error) {
 	constructorVal := reflect.ValueOf(constructorAny)
 	constructorType := constructorVal.Type()
 
@@ -277,11 +277,11 @@ func (f *TaskFactory) invokeConstructor(taskName string, constructorAny any, par
 	taskVal := results[0].Interface()
 	errVal := results[1].Interface()
 
-	var resultTask task.Task
+	var resultTask domain.Task
 	var resultErr error
 
 	if taskVal != nil {
-		resultTask = taskVal.(task.Task)
+		resultTask = taskVal.(domain.Task)
 	}
 	if errVal != nil {
 		resultErr = errVal.(error)
@@ -318,7 +318,7 @@ func (f *TaskFactory) Count() int {
 }
 
 // MustCreateTask is like CreateTask but panics on error.
-func (f *TaskFactory) MustCreateTask(name string, params any) task.Task {
+func (f *TaskFactory) MustCreateTask(name string, params any) domain.Task {
 	t, err := f.CreateTask(name, params)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create task '%s': %v", name, err))

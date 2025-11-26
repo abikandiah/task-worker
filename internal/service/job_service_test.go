@@ -34,21 +34,24 @@ func setupTestJobService(mockRepo *mock.MockRepo) (*JobService, *domain.GlobalDe
 		Version:     config.Version,
 	})
 
-	globalDeps := &domain.GlobalDependencies{
+	deps := &domain.GlobalDependencies{
 		Config:     &config,
 		Repository: mockRepo,
 	}
 
 	taskFactory := factory.NewTaskFactory()
+	factory.RegisterDepdenencies(taskFactory, deps)
 	factory.RegisterTasks(taskFactory)
 
+	deps.TaskFactory = taskFactory
+
 	service := NewJobService(&JobServiceParams{
-		Config:      globalDeps.Config.Worker,
-		Repository:  globalDeps.Repository,
-		TaskFactory: taskFactory,
+		Config:      deps.Config.Worker,
+		Repository:  deps.Repository,
+		TaskFactory: deps.TaskFactory,
 	})
 
-	return service, globalDeps
+	return service, deps
 }
 
 func TestNewJobService(t *testing.T) {

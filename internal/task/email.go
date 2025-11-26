@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
+	"github.com/abikandiah/task-worker/internal/domain"
 )
 
 type EmailParams struct {
@@ -20,7 +22,7 @@ type SendEmailTask struct {
 	*EmailDependencies
 }
 
-func SendEmailConstructor(params *EmailParams, deps *EmailDependencies) (Task, error) {
+func SendEmailConstructor(params *EmailParams, deps *EmailDependencies) (domain.Task, error) {
 	if params == nil {
 		params = &EmailParams{
 			Subject: "default-email",

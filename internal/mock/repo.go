@@ -139,16 +139,21 @@ func (repo *MockRepo) SaveJob(ctx context.Context, job domain.Job) (*domain.Job,
 	return &jobCopy, nil
 }
 
-func (repo *MockRepo) GetAllJobConfigs() []*domain.JobConfig {
+func (repo *MockRepo) GetAllJobConfigs(ctx context.Context, input *domain.CursorInput) (*domain.CursorOutput[domain.JobConfig], error) {
 	repo.mu.RLock()
 	defer repo.mu.RUnlock()
 
-	configs := make([]*domain.JobConfig, 0, len(repo.configs))
+	configs := make([]domain.JobConfig, 0, len(repo.configs))
 	for _, config := range repo.configs {
-		configs = append(configs, config)
+		configs = append(configs, *config)
 	}
 
-	return configs
+	return &domain.CursorOutput[domain.JobConfig]{
+		NextCursor: nil,
+		PrevCursor: nil,
+		Limit:      input.Limit,
+		Data:       configs,
+	}, nil
 }
 
 func (repo *MockRepo) GetJobConfig(ctx context.Context, configID uuid.UUID) (*domain.JobConfig, error) {

@@ -4,8 +4,10 @@ package db
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
+	"github.com/abikandiah/task-worker/internal/util"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"           // PostgreSQL driver
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
@@ -14,14 +16,20 @@ import (
 type DB struct {
 	*sqlx.DB
 	driver string
-	cfg    Config
+	cfg    *Config
 }
 
-func New(config Config) (*DB, error) {
+func New(config *Config) (*DB, error) {
 	// Build DSN from config
 	dsn := config.DSN()
 	if dsn == "" {
 		return nil, fmt.Errorf("unsupported database driver: %s", config.Driver)
+	}
+
+	if config.Driver == "sqlite3" {
+		if err := util.MakeDirs(config.DBName); err != nil {
+			return nil, fmt.Errorf("error creating sqlite3 parent dirs: %w", err)
+		}
 	}
 
 	// Open connection
@@ -33,6 +41,7 @@ func New(config Config) (*DB, error) {
 	// Driver-specific configuration
 	switch config.Driver {
 	case "sqlite3":
+		slog.Info("connected to sqlite3 db", "name", config.DBName)
 		// SQLite-specific settings
 		// SQLite only supports one writer at a time
 		db.SetMaxOpenConns(1)

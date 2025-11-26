@@ -12,8 +12,10 @@ import (
 	"github.com/abikandiah/task-worker/config"
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/factory"
+	"github.com/abikandiah/task-worker/internal/platform/db"
 	"github.com/abikandiah/task-worker/internal/platform/logging"
 	"github.com/abikandiah/task-worker/internal/platform/server"
+	"github.com/abikandiah/task-worker/internal/repository/sqlite3"
 	"github.com/abikandiah/task-worker/internal/service"
 	"github.com/abikandiah/task-worker/internal/task"
 )
@@ -38,6 +40,13 @@ func NewApplication(deps *AppDependencies) *Application {
 	}
 
 	app.Logger = logging.SetupLogger(deps.Config.Logger)
+
+	db, err := db.New(app.Config.Database)
+	if err != nil {
+		panic(err.Error())
+	}
+	app.Repository = sqlite3.NewSQLiteServiceRepository(db.DB)
+	// app.Repository = mock.NewMockRepo()
 
 	taskFactory := factory.NewTaskFactory()
 	app.TaskFactory = taskFactory

@@ -39,15 +39,17 @@ func SetConfigDefaults(v *viper.Viper) {
 }
 
 func BindEnvironmentVariables(v *viper.Viper) {
-	v.BindEnv("database.host", "DB_HOST")
-	v.BindEnv("database.port", "DB_PORT")
-	v.BindEnv("database.user", "DB_USER")
-	v.BindEnv("database.password", "DB_PASSWORD")
-	v.BindEnv("database.db_name", "DB_NAME")
-	v.BindEnv("database.max_open_conns", "DB_MAX_OPEN_CONNS")
-	v.BindEnv("database.max_idle_conns", "DB_MAX_IDLE_CONNS")
-	v.BindEnv("database.conn_max_lifetime", "DB_CONN_MAX_LIFETIME")
-	v.BindEnv("database.ssl_mode", "DB_SSL_MODE")
+	v.BindEnv("database.driver", "APP_DATABASE_DRIVER")
+	v.BindEnv("database.host", "APP_DATABASE_HOST")
+	v.BindEnv("database.port", "APP_DATABASE_PORT")
+	v.BindEnv("database.user", "APP_DATABASE_USER")
+	v.BindEnv("database.password", "APP_DATABASE_PASSWORD")
+	v.BindEnv("database.db_name", "APP_DATABASE_DB_NAME")
+	v.BindEnv("database.max_open_conns", "APP_DATABASE_MAX_OPEN_CONNS")
+	v.BindEnv("database.max_idle_conns", "APP_DATABASE_MAX_IDLE_CONNS")
+	v.BindEnv("database.conn_max_lifetime", "APP_DATABASE_CONN_MAX_LIFETIME")
+	v.BindEnv("database.ssl_mode", "APP_DATABASE_SSL_MODE")
+	v.BindEnv("database.auto_migrate", "APP_DATABASE_AUTO_MIGRATE")
 }
 
 // DSN builds the database connection string from config

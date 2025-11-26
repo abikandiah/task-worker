@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -25,9 +26,7 @@ type IdentityVersion struct {
 type ExecutionState int
 
 const (
-	_ ExecutionState = iota
-
-	StatePending
+	StatePending ExecutionState = iota
 	StateRunning
 	StateFinished
 	StateStopped
@@ -36,6 +35,8 @@ const (
 	StateError
 	StateRejected
 )
+
+// --- Lookup Maps ---
 
 var executionStateStrings = map[ExecutionState]string{
 	StatePending:  "PENDING",
@@ -48,6 +49,7 @@ var executionStateStrings = map[ExecutionState]string{
 	StateRejected: "REJECTED",
 }
 
+// stringToExecutionState is the inverse map for fast string-to-int lookups
 var stringToExecutionState = generateStringToExecutionState()
 
 func generateStringToExecutionState() map[string]ExecutionState {
@@ -58,6 +60,9 @@ func generateStringToExecutionState() map[string]ExecutionState {
 	return res
 }
 
+// --- Stringer Method ---
+
+// String() is called by MarshalJSON and fmt.Print* functions.
 func (s ExecutionState) String() string {
 	if str, ok := executionStateStrings[s]; ok {
 		return str
@@ -65,21 +70,26 @@ func (s ExecutionState) String() string {
 	return fmt.Sprintf("ExecutionState(%d)", s)
 }
 
+// --- JSON Marshalling/Unmarshalling ---
+
+// MarshalJSON converts the ExecutionState int to a quoted string.
 func (s ExecutionState) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + s.String() + `"`), nil
 }
 
+// UnmarshalJSON converts a JSON string (e.g., "RUNNING") back to the ExecutionState int type.
 func (s *ExecutionState) UnmarshalJSON(b []byte) error {
-	// Remove the surrounding quotes from the JSON string (e.g., "ACTIVE" -> ACTIVE)
-	strVal := string(b)
-	if len(strVal) > 0 && strVal[0] == '"' && strVal[len(strVal)-1] == '"' {
-		strVal = strVal[1 : len(strVal)-1]
+	var strVal string
+	if err := json.Unmarshal(b, &strVal); err != nil {
+		return err // Return if unquoting fails (e.g., input was a number, not a string)
 	}
 
 	state, ok := stringToExecutionState[strVal]
 	if !ok {
-		return fmt.Errorf("invalid Status value: %s", strVal)
+		return fmt.Errorf("invalid ExecutionState value: %s", string(b))
 	}
+
+	// Assign the found integer constant back to the pointer *s
 	*s = state
 	return nil
 }

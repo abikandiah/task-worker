@@ -11,6 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"           // PostgreSQL driver
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
+	"github.com/pressly/goose/v3"
 )
 
 type DB struct {
@@ -121,6 +122,46 @@ func (db *DB) WithinTransaction(ctx context.Context, fn func(*sqlx.Tx) error) er
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (db *DB) RunMigrations(migrationsDir string) error {
+	if err := goose.SetDialect(db.driver); err != nil {
+		return fmt.Errorf("set goose dialect: %w", err)
+	}
+
+	// Run migrations
+	if err := goose.Up(db.DB.DB, migrationsDir); err != nil {
+		return fmt.Errorf("run migrations: %w", err)
+	}
+
+	slog.Info("migrations completed successfully", "driver", db.driver)
+	return nil
+}
+
+func (db *DB) MigrateDown(migrationsDir string) error {
+	if err := goose.SetDialect(db.driver); err != nil {
+		return fmt.Errorf("set goose dialect: %w", err)
+	}
+
+	if err := goose.Down(db.DB.DB, migrationsDir); err != nil {
+		return fmt.Errorf("rollback migration: %w", err)
+	}
+
+	slog.Info("migration rolled back successfully")
+	return nil
+}
+
+// MigrateStatus shows the current migration status
+func (db *DB) MigrateStatus(migrationsDir string) error {
+	if err := goose.SetDialect(db.driver); err != nil {
+		return fmt.Errorf("set goose dialect: %w", err)
+	}
+
+	if err := goose.Status(db.DB.DB, migrationsDir); err != nil {
+		return fmt.Errorf("get migration status: %w", err)
 	}
 
 	return nil

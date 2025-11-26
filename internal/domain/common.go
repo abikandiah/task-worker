@@ -22,6 +22,11 @@ type IdentityVersion struct {
 	Version string `json:"version"`
 }
 
+type Status struct {
+	State    ExecutionState `json:"state"`
+	Progress float32        `json:"progress"`
+}
+
 // State
 type ExecutionState int
 

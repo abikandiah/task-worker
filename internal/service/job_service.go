@@ -129,11 +129,11 @@ func (service *JobService) GetJob(ctx context.Context, jobID uuid.UUID) (*domain
 	return job, err
 }
 
-func (service *JobService) GetJobStatus(ctx context.Context, jobID uuid.UUID) (*domain.JobStatus, error) {
+func (service *JobService) GetJobStatus(ctx context.Context, jobID uuid.UUID) (*domain.Status, error) {
 	if job, err := service.GetJob(ctx, jobID); err != nil {
 		return nil, err
 	} else {
-		return &job.JobStatus, nil
+		return &job.Status, nil
 	}
 }
 

@@ -9,16 +9,11 @@ import (
 
 type Job struct {
 	Identity
-	JobStatus
+	Status
 	ConfigID   uuid.UUID `json:"configId,omitempty"`
 	SubmitDate time.Time `json:"submitDate"`
 	StartDate  time.Time `json:"startDate,omitempty"`
 	EndDate    time.Time `json:"endDate,omitempty"`
-}
-
-type JobStatus struct {
-	State    ExecutionState `json:"state"`
-	Progress float32        `json:"progress"`
 }
 
 type JobSubmission struct {

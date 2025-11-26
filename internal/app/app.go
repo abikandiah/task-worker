@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -45,8 +46,13 @@ func NewApplication(deps *AppDependencies) *Application {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	migrationsDir := "./migrations/sqlite3"
+	if err := db.RunMigrations(migrationsDir); err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
+
 	app.Repository = sqlite3.NewSQLiteServiceRepository(db.DB)
-	// app.Repository = mock.NewMockRepo()
 
 	taskFactory := factory.NewTaskFactory()
 	app.TaskFactory = taskFactory

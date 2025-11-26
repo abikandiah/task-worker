@@ -5,7 +5,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/abikandiah/task-worker/config"
 	"golang.org/x/time/rate"
 )
 
@@ -16,7 +15,7 @@ type rateLimiter struct {
 	burst    int
 }
 
-func newRateLimiter(config *config.RateLimitConfig) *rateLimiter {
+func newRateLimiter(config *RateLimitConfig) *rateLimiter {
 	return &rateLimiter{
 		limiters: make(map[string]*rate.Limiter),
 		rate:     rate.Limit(config.RequestsPerSecond),

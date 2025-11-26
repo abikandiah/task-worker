@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/abikandiah/task-worker/config"
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/cors"
@@ -46,7 +45,7 @@ func (server *Server) contentTypeMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func configureCORSMiddleware(cfg *config.CORSConfig) func(http.Handler) http.Handler {
+func configureCORSMiddleware(cfg *CORSConfig) func(http.Handler) http.Handler {
 	if !cfg.Enabled {
 		return func(next http.Handler) http.Handler {
 			return next // Simply pass the request along

@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/abikandiah/task-worker/config"
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/google/uuid"
 )
@@ -22,13 +21,13 @@ type JobService struct {
 }
 
 type jobServiceDependencies struct {
-	config      *config.WorkerConfig
+	config      *Config
 	repository  domain.ServiceRepository
 	taskFactory domain.TaskFactory
 }
 
 type JobServiceParams struct {
-	Config      *config.WorkerConfig
+	Config      *Config
 	Repository  domain.ServiceRepository
 	TaskFactory domain.TaskFactory
 }

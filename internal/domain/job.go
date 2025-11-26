@@ -10,7 +10,7 @@ import (
 type Job struct {
 	Identity
 	JobStatus
-	ConfigID   uuid.UUID `json:"configId"`
+	ConfigID   uuid.UUID `json:"configId,omitempty"`
 	SubmitDate time.Time `json:"submitDate"`
 	StartDate  time.Time `json:"startDate,omitempty"`
 	EndDate    time.Time `json:"endDate,omitempty"`

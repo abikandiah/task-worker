@@ -29,16 +29,20 @@ server:
     max_age: 2h
 
 database:
-  host: "localhost"
+  driver: postgres
+  host: localhost
   port: 5432
-  user: "appuser"
+  user: myuser
   password: ""  # Set via APP_DATABASE_PASSWORD environment variable
-  db_name: "appdb"
+  db_name: myapp_dev
   max_open_conns: 25
-  max_idle_conns: 5
+  max_idle_conns: 25
   conn_max_lifetime: 5m
-  ssl_mode: "disable"
-
+  conn_max_idle_time: 5m
+  ssl_mode: disable
+  auto_migrate: true
+  
+  
 rate_limit:
   requests_per_second: 100
   burst: 200

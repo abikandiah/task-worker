@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/abikandiah/task-worker/config"
 	"github.com/abikandiah/task-worker/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -22,14 +21,13 @@ type Server struct {
 }
 
 type serverDepedencies struct {
-	serverConfig *config.ServerConfig
+	serverConfig *Config
 	jobService   *service.JobService
 }
 
 type ServerParams struct {
-	ServerConfig    *config.ServerConfig
-	RateLimitConfig *config.RateLimitConfig
-	JobService      *service.JobService
+	ServerConfig *Config
+	JobService   *service.JobService
 }
 
 func NewServer(deps *ServerParams) *http.Server {
@@ -39,7 +37,7 @@ func NewServer(deps *ServerParams) *http.Server {
 			jobService:   deps.JobService,
 		},
 		router:  chi.NewRouter(),
-		limiter: newRateLimiter(deps.RateLimitConfig),
+		limiter: newRateLimiter(deps.ServerConfig.RateLimit),
 		apiKeys: make(map[string]struct{}),
 	}
 
@@ -73,7 +71,6 @@ func NewServer(deps *ServerParams) *http.Server {
 	}
 
 	slog.Info("server initialized", slog.Any("server_config", config))
-	slog.Info("rate limiter initialized", slog.Any("rate_limit_config", deps.RateLimitConfig))
 
 	server.printRoutes("")
 

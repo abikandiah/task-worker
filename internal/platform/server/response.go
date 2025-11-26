@@ -37,7 +37,7 @@ func (server *Server) respondJSON(w http.ResponseWriter, status int, data any) {
 	w.WriteHeader(status)
 
 	if err := json.NewEncoder(w).Encode(data); err != nil {
-		server.logger.Error("failed to encode response",
+		slog.Error("failed to encode response",
 			slog.String("error", err.Error()),
 		)
 	}

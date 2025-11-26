@@ -39,7 +39,7 @@ func SetupLogger(config LoggerParams) *slog.Logger {
 	slog.SetDefault(logger)
 
 	// Log initialization
-	logger.Info("logger and config initialized",
+	slog.Info("logger and config initialized",
 		slog.String("environment", config.Environment),
 		slog.String("service", config.ServiceName),
 		slog.String("version", config.Version),

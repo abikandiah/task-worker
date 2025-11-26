@@ -27,12 +27,12 @@ func (worker *JobWorker) Run(ctx context.Context) {
 		// Get and run job
 		job, err := worker.repository.GetJob(ctx, jobID)
 		if err != nil {
-			worker.logger.ErrorContext(ctx, "Failed to fetch job", slog.Any("error", err))
+			slog.ErrorContext(ctx, "Failed to fetch job", slog.Any("error", err))
 		} else {
 
 			err = worker.runJob(ctx, job)
 			if err != nil {
-				worker.logger.ErrorContext(ctx, "Job failed", slog.Any("error", err))
+				slog.ErrorContext(ctx, "Job failed", slog.Any("error", err))
 				worker.updateJobState(ctx, job, domain.StateError)
 				worker.repository.SaveJob(ctx, *job)
 			}
@@ -49,7 +49,7 @@ func (worker *JobWorker) runJob(ctx context.Context, job *domain.Job) error {
 	} else {
 		cfg, err := worker.repository.GetJobConfig(ctx, job.ConfigID)
 		if err != nil {
-			worker.logger.ErrorContext(ctx, "Failed to fetch config", slog.Any("error", err))
+			slog.ErrorContext(ctx, "Failed to fetch config", slog.Any("error", err))
 			return fmt.Errorf("failed to fetch config %s: %w", job.ConfigID, err)
 		}
 		config = cfg
@@ -95,7 +95,7 @@ func (worker *JobWorker) executeJob(ctx context.Context, job *domain.Job, config
 	// Get TaskRuns
 	taskRuns, err := worker.repository.GetTaskRuns(ctx, job.ID)
 	if err != nil {
-		worker.logger.ErrorContext(ctx, "Failed to fetch taskRuns", slog.Any("error", err))
+		slog.ErrorContext(ctx, "Failed to fetch taskRuns", slog.Any("error", err))
 		return fmt.Errorf("failed to fetch taskRuns %s: %w", job.ID, err)
 	}
 
@@ -130,5 +130,5 @@ func (worker *JobWorker) executeJob(ctx context.Context, job *domain.Job, config
 
 func (worker *JobWorker) updateJobState(ctx context.Context, job *domain.Job, state domain.ExecutionState) {
 	job.State = state
-	worker.logger.InfoContext(ctx, "Job "+job.State.String())
+	slog.InfoContext(ctx, "Job "+job.State.String())
 }

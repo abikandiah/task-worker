@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
@@ -12,7 +13,6 @@ import (
 	"github.com/abikandiah/task-worker/internal/factory"
 	"github.com/abikandiah/task-worker/internal/mock"
 	"github.com/abikandiah/task-worker/internal/platform/logging"
-	"github.com/abikandiah/task-worker/internal/task"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +27,7 @@ func setupTestJobService(mockRepo *mock.MockRepo) (*JobService, *domain.GlobalDe
 		},
 	}
 
-	logger := logging.SetupLogger(logging.LoggerParams{
+	logging.SetupLogger(logging.LoggerParams{
 		Level:       config.Logger.Level,
 		Environment: config.Environment,
 		ServiceName: config.ServiceName,
@@ -36,15 +36,16 @@ func setupTestJobService(mockRepo *mock.MockRepo) (*JobService, *domain.GlobalDe
 
 	globalDeps := &domain.GlobalDependencies{
 		Config:     &config,
-		Logger:     logger,
 		Repository: mockRepo,
 	}
+
+	taskFactory := factory.NewTaskFactory()
+	factory.RegisterTasks(taskFactory)
 
 	service := NewJobService(&JobServiceParams{
 		Config:      globalDeps.Config.Worker,
 		Repository:  globalDeps.Repository,
-		TaskFactory: factory.NewTaskFactory(globalDeps),
-		Logger:      globalDeps.Logger,
+		TaskFactory: taskFactory,
 	})
 
 	return service, globalDeps
@@ -86,9 +87,9 @@ func TestJobService_SubmitJob_Success(t *testing.T) {
 			},
 			{
 				TaskName: "duration",
-				Params: &task.DurationParams{
-					Length: 30,
-				},
+				Params: json.RawMessage(`{
+					"length": 30
+				}`),
 			},
 		},
 	}

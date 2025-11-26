@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
-	"github.com/abikandiah/task-worker/internal/factory"
 )
 
 type TaskRunRequest struct {
@@ -45,7 +44,7 @@ func (worker *TaskWorker) runTask(ctx context.Context, taskRun *domain.TaskRun, 
 	select {
 	case err := <-errCh:
 		if err != nil {
-			worker.logger.ErrorContext(ctx, "Task failed", slog.Any("error", err))
+			slog.ErrorContext(ctx, "Task failed", slog.Any("error", err))
 			worker.updateTaskState(ctx, taskRun, domain.StateError)
 			worker.repository.SaveTaskRun(ctx, *taskRun)
 		}
@@ -73,15 +72,15 @@ func (worker *TaskWorker) ExecuteTask(ctx context.Context, taskRun *domain.TaskR
 		worker.repository.SaveTaskRun(ctx, *taskRun)
 	}()
 
-	task, err := factory.CreateTask(worker.taskFactory, taskRun.TaskName, taskRun.Params)
+	task, err := worker.taskFactory.CreateTask(taskRun.TaskName, taskRun.Params)
 	if err != nil {
-		worker.logger.ErrorContext(ctx, "Failed to create task", slog.Any("error", err))
+		slog.ErrorContext(ctx, "Failed to create task", slog.Any("error", err))
 		return fmt.Errorf("failed to create task %s: %w", taskRun.TaskName, err)
 	}
 
 	res, err := task.Execute(ctx)
 	if err != nil {
-		worker.logger.ErrorContext(ctx, "Task failed", slog.Any("error", err))
+		slog.ErrorContext(ctx, "Task failed", slog.Any("error", err))
 		return fmt.Errorf("task failed %s: %w", taskRun.TaskName, err)
 	}
 
@@ -92,5 +91,5 @@ func (worker *TaskWorker) ExecuteTask(ctx context.Context, taskRun *domain.TaskR
 
 func (worker *TaskWorker) updateTaskState(ctx context.Context, taskRun *domain.TaskRun, state domain.ExecutionState) {
 	taskRun.State = state
-	worker.logger.InfoContext(ctx, "TaskRun "+taskRun.State.String())
+	slog.InfoContext(ctx, "TaskRun "+taskRun.State.String())
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/abikandiah/task-worker/internal/factory"
 	"github.com/abikandiah/task-worker/internal/mock"
+	"github.com/abikandiah/task-worker/internal/platform/logging"
 	"github.com/abikandiah/task-worker/internal/platform/server"
 	"github.com/abikandiah/task-worker/internal/service"
 )
@@ -23,12 +24,21 @@ func main() {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 
-	taskFactory := factory.NewTaskFactory(deps)
+	logging.SetupLogger(logging.LoggerParams{
+		Level:       deps.Config.Logger.Level,
+		Environment: deps.Config.Environment,
+		ServiceName: deps.Config.ServiceName,
+		Version:     deps.Config.Version,
+	})
+
+	taskFactory := factory.NewTaskFactory()
+	factory.RegisterDepdenencies(taskFactory, deps)
+	factory.RegisterTasks(taskFactory)
+
 	repo := mock.NewMockRepo()
 
 	jobService := service.NewJobService(&service.JobServiceParams{
 		Config:      deps.Config.Worker,
-		Logger:      deps.Logger,
 		TaskFactory: taskFactory,
 		Repository:  repo,
 	})
@@ -39,32 +49,31 @@ func main() {
 	httpServer := server.NewServer(&server.ServerParams{
 		ServerConfig:    deps.Config.Server,
 		RateLimitConfig: deps.Config.RateLimit,
-		Logger:          deps.Logger,
 		JobService:      jobService,
 	})
 
 	// Start server in a goroutine
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			deps.Logger.Error("server failed to start", slog.Any("error", err))
+			slog.Error("server failed to start", slog.Any("error", err))
 		}
 	}()
 
-	deps.Logger.Info("server is listening and ready to handle requests")
+	slog.Info("server is listening and ready to handle requests")
 
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	deps.Logger.Info("server shutting down...")
+	slog.Info("server shutting down...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := httpServer.Shutdown(ctx); err != nil {
-		deps.Logger.Error("server forced to shutdown", slog.Any("error", err))
+		slog.Error("server forced to shutdown", slog.Any("error", err))
 	}
 
-	deps.Logger.Info("server stopped")
+	slog.Info("server stopped")
 }

@@ -5,41 +5,40 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/abikandiah/task-worker/internal/domain"
 )
 
 type EmailParams struct {
-	Recipient string
-	Subject   string
-	Message   string
+	Subject string
+	Body    string
+	To      string
 }
 
-type EmailDependencies struct {
-	Logger *slog.Logger
+type EmailDependencies struct{}
+
+type SendEmailTask struct {
+	*EmailParams
+	*EmailDependencies
 }
 
-type EmailSendTask struct {
-	params *EmailParams
-	deps   *EmailDependencies
-}
-
-func EmailSendConstructor(params *EmailParams, deps *domain.GlobalDependencies) (Task, error) {
-	if params.Recipient == "" {
-		return nil, fmt.Errorf("recipient is required")
+func SendEmailConstructor(params *EmailParams, deps *EmailDependencies) (Task, error) {
+	if params == nil {
+		params = &EmailParams{
+			Subject: "default-email",
+			To:      "example@home",
+		}
+	}
+	if params.To == "" {
+		return nil, fmt.Errorf("to is required")
 	}
 
-	taskDeps := &EmailDependencies{
-		Logger: deps.Logger,
-	}
-
-	return &EmailSendTask{
-		params: params,
-		deps:   taskDeps,
+	return &SendEmailTask{
+		EmailParams:       params,
+		EmailDependencies: deps,
 	}, nil
 }
 
-func (task *EmailSendTask) Execute(ctx context.Context) (any, error) {
+func (task *SendEmailTask) Execute(ctx context.Context) (any, error) {
 	<-time.After(10 * time.Second)
+	slog.InfoContext(ctx, "email", "subject", task.Subject, "to", task.To)
 	return nil, nil
 }

@@ -32,7 +32,7 @@ func (server *Server) handleGetJobConfig(w http.ResponseWriter, r *http.Request)
 
 	config, err := server.jobService.GetJobConfig(ctx, configID)
 	if err != nil {
-		server.logger.ErrorContext(ctx, "failed to get config", slog.Any("error", err))
+		slog.ErrorContext(ctx, "failed to get config", slog.Any("error", err))
 		server.respondError(w, http.StatusNotFound, "config not found")
 		return
 	}

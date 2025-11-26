@@ -3,21 +3,24 @@ package factory
 import (
 	"github.com/abikandiah/task-worker/config"
 	"github.com/abikandiah/task-worker/internal/domain"
-	"github.com/abikandiah/task-worker/internal/platform/logging"
+	"github.com/abikandiah/task-worker/internal/task"
 )
 
 func NewGlobalDependencies() (*domain.GlobalDependencies, error) {
 	config := config.MustLoad()
 
-	logger := logging.SetupLogger(logging.LoggerParams{
-		Level:       config.Logger.Level,
-		Environment: config.Environment,
-		ServiceName: config.ServiceName,
-		Version:     config.Version,
-	})
-
 	return &domain.GlobalDependencies{
 		Config: config,
-		Logger: logger,
 	}, nil
+}
+
+func RegisterDepdenencies(factory *TaskFactory, deps *domain.GlobalDependencies) {
+	RegisterDependency(factory, deps.Config)
+	RegisterDependency(factory, deps.Repository)
+}
+
+func RegisterTasks(factory *TaskFactory) {
+	Register(factory, "chat", task.ChatConstructor)
+	Register(factory, "send_email", task.SendEmailConstructor)
+	Register(factory, "duration", task.DurationConstructor)
 }

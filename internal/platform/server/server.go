@@ -23,14 +23,12 @@ type Server struct {
 
 type serverDepedencies struct {
 	serverConfig *config.ServerConfig
-	logger       *slog.Logger
 	jobService   *service.JobService
 }
 
 type ServerParams struct {
 	ServerConfig    *config.ServerConfig
 	RateLimitConfig *config.RateLimitConfig
-	Logger          *slog.Logger
 	JobService      *service.JobService
 }
 
@@ -38,7 +36,6 @@ func NewServer(deps *ServerParams) *http.Server {
 	server := &Server{
 		serverDepedencies: &serverDepedencies{
 			serverConfig: deps.ServerConfig,
-			logger:       deps.Logger,
 			jobService:   deps.JobService,
 		},
 		router:  chi.NewRouter(),
@@ -49,7 +46,7 @@ func NewServer(deps *ServerParams) *http.Server {
 	// Load API key with validation
 	workerSecret := os.Getenv("WORKER_SECRET")
 	if workerSecret == "" {
-		server.logger.Warn("WORKER_SECRET not set - API authentication may not work")
+		slog.Warn("WORKER_SECRET not set - API authentication may not work")
 	} else {
 		server.apiKeys[workerSecret] = struct{}{}
 	}
@@ -59,7 +56,7 @@ func NewServer(deps *ServerParams) *http.Server {
 
 	config := server.serverConfig
 	errorLog := log.New(
-		&logWriter{logger: server.logger},
+		&logWriter{logger: slog.Default()},
 		"",
 		0,
 	)
@@ -75,8 +72,8 @@ func NewServer(deps *ServerParams) *http.Server {
 		ErrorLog:          errorLog,
 	}
 
-	server.logger.Info("server initialized", slog.Any("server_config", config))
-	server.logger.Info("rate limiter initialized", slog.Any("rate_limit_config", deps.RateLimitConfig))
+	slog.Info("server initialized", slog.Any("server_config", config))
+	slog.Info("rate limiter initialized", slog.Any("rate_limit_config", deps.RateLimitConfig))
 
 	server.printRoutes("")
 

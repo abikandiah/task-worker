@@ -26,20 +26,17 @@ type jobServiceDependencies struct {
 	config      *config.WorkerConfig
 	repository  domain.ServiceRepository
 	taskFactory *factory.TaskFactory
-	logger      *slog.Logger
 }
 
 type JobServiceParams struct {
 	Config      *config.WorkerConfig
 	Repository  domain.ServiceRepository
 	TaskFactory *factory.TaskFactory
-	Logger      *slog.Logger
 }
 
 func NewJobService(params *JobServiceParams) *JobService {
 	jobServiceDeps := &jobServiceDependencies{
 		config:      params.Config,
-		logger:      params.Logger,
 		taskFactory: params.TaskFactory,
 		repository:  params.Repository,
 	}
@@ -103,7 +100,7 @@ func (service *JobService) SubmitJob(ctx context.Context, submission *domain.Job
 	// Write to DB
 	job, err := service.repository.SaveJob(ctx, *job)
 	if err != nil {
-		service.logger.ErrorContext(ctx, "Failed to save job", slog.Any("error", err))
+		slog.ErrorContext(ctx, "Failed to save job", slog.Any("error", err))
 		return job, fmt.Errorf("failed to save job: %w", err)
 	}
 
@@ -115,7 +112,7 @@ func (service *JobService) SubmitJob(ctx context.Context, submission *domain.Job
 	}
 	_, err = service.repository.SaveTaskRuns(ctx, submission.TaskRuns)
 	if err != nil {
-		service.logger.ErrorContext(ctx, "Failed to save job taskRuns", slog.Any("error", err))
+		slog.ErrorContext(ctx, "Failed to save job taskRuns", slog.Any("error", err))
 		return job, fmt.Errorf("failed to save job taskRuns: %w", err)
 	}
 
@@ -149,7 +146,7 @@ func (service *JobService) GetJobConfig(ctx context.Context, configID uuid.UUID)
 }
 
 func (service *JobService) Close(ctx context.Context) {
-	service.logger.InfoContext(ctx, "Closing job service")
+	slog.InfoContext(ctx, "Closing job service")
 	close(service.jobCh)
 	close(service.taskCh)
 

@@ -32,20 +32,20 @@ func (server *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 
 	var submission domain.JobSubmission
 	if err := json.NewDecoder(r.Body).Decode(&submission); err != nil {
-		server.logger.WarnContext(ctx, "failed to decode job request", slog.Any("error", err))
+		slog.WarnContext(ctx, "failed to decode job request", slog.Any("error", err))
 		server.respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	// Validate required fields
 	if submission.Name == "" {
-		server.logger.WarnContext(ctx, "job name missing")
+		slog.WarnContext(ctx, "job name missing")
 		server.respondError(w, http.StatusBadRequest, "job name is required")
 		return
 	}
 
 	if len(submission.TaskRuns) == 0 {
-		server.logger.WarnContext(ctx, "job taskRuns missing")
+		slog.WarnContext(ctx, "job taskRuns missing")
 		server.respondError(w, http.StatusBadRequest, "job taskRuns is required")
 		return
 	}
@@ -53,13 +53,13 @@ func (server *Server) handleSubmitJob(w http.ResponseWriter, r *http.Request) {
 	// Submit job to service
 	job, err := server.jobService.SubmitJob(ctx, &submission)
 	if err != nil {
-		server.logger.ErrorContext(ctx, "failed to submit job", slog.Any("error", err))
+		slog.ErrorContext(ctx, "failed to submit job", slog.Any("error", err))
 		server.respondError(w, http.StatusInternalServerError, "failed to submit job")
 		return
 	}
 
 	ctx = context.WithValue(ctx, domain.LKeys.JobID, job.ID)
-	server.logger.InfoContext(ctx, "job submitted successfully")
+	slog.InfoContext(ctx, "job submitted successfully")
 
 	server.respondJSON(w, http.StatusCreated, job)
 }
@@ -77,7 +77,7 @@ func (server *Server) handleGetJob(w http.ResponseWriter, r *http.Request) {
 
 	job, err := server.jobService.GetJob(ctx, jobID)
 	if err != nil {
-		server.logger.ErrorContext(ctx, "failed to get job", slog.Any("error", err))
+		slog.ErrorContext(ctx, "failed to get job", slog.Any("error", err))
 		server.respondError(w, http.StatusNotFound, "job not found")
 		return
 	}
@@ -98,7 +98,7 @@ func (server *Server) handleGetJobStatus(w http.ResponseWriter, r *http.Request)
 
 	status, err := server.jobService.GetJobStatus(r.Context(), jobID)
 	if err != nil {
-		server.logger.ErrorContext(ctx, "failed to get job status", slog.Any("error", err))
+		slog.ErrorContext(ctx, "failed to get job status", slog.Any("error", err))
 		server.respondError(w, http.StatusNotFound, "job not found")
 		return
 	}

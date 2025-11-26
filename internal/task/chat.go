@@ -2,43 +2,34 @@ package task
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
-
-	"github.com/abikandiah/task-worker/internal/domain"
 )
 
 type ChatParams struct {
 	Message string
 }
 
-type ChatTaskDependencies struct {
-	Logger *slog.Logger
-}
+type ChatTaskDependencies struct{}
 
 type ChatTask struct {
-	Params *ChatParams
-	Deps   *ChatTaskDependencies
+	*ChatParams
+	*ChatTaskDependencies
 }
 
-func ChatConstructor(params any, deps *domain.GlobalDependencies) (Task, error) {
-	taskParams, ok := params.(ChatParams)
-	if !ok {
-		return nil, fmt.Errorf("invalid params passed to ChatTask factory: %T", params)
+func ChatConstructor(params *ChatParams, deps *ChatTaskDependencies) (Task, error) {
+	if params == nil {
+		params = &ChatParams{Message: "default-chat"}
 	}
-
-	taskDeps := &ChatTaskDependencies{
-		Logger: deps.Logger,
-	}
-
 	return &ChatTask{
-		Params: &taskParams,
-		Deps:   taskDeps,
+		ChatParams:           params,
+		ChatTaskDependencies: deps,
 	}, nil
 }
 
 func (task *ChatTask) Execute(ctx context.Context) (any, error) {
+	slog.InfoContext(ctx, task.Message)
+
 	<-time.After(20 * time.Second)
 	return nil, nil
 }

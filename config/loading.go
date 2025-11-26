@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/abikandiah/task-worker/internal/platform/db"
+	"github.com/abikandiah/task-worker/internal/platform/logging"
 	"github.com/abikandiah/task-worker/internal/platform/server"
 	"github.com/abikandiah/task-worker/internal/service"
 	"github.com/joho/godotenv"
@@ -99,8 +100,7 @@ func setDefaults(v *viper.Viper) {
 	server.SetConfigDefaults(v)
 	db.SetConfigDefaults(v)
 	service.SetConfigDefaults(v)
-
-	v.SetDefault("logger.level", "INFO")
+	logging.SetConfigDefaults(v)
 }
 
 // bindEnvironmentVariables explicitly binds environment variables
@@ -113,9 +113,7 @@ func bindEnvironmentVariables(v *viper.Viper) {
 	server.BindEnvironmentVariables(v)
 	db.BindEnvironmentVariables(v)
 	service.BindEnvironmentVariables(v)
-
-	// Logger Config
-	v.BindEnv("logger.level", "LOG_LEVEL")
+	logging.BindEnvironmentVariables(v)
 }
 
 func initDefaultViper() *viper.Viper {

@@ -7,14 +7,7 @@ import (
 	"strings"
 )
 
-type LoggerParams struct {
-	Level       string
-	Environment string
-	ServiceName string
-	Version     string
-}
-
-func SetupLogger(config LoggerParams) *slog.Logger {
+func SetupLogger(config *Config) *slog.Logger {
 	logLevel := parseLogLevel(config.Level)
 	levelVar := new(slog.LevelVar)
 	levelVar.Set(logLevel)
@@ -27,11 +20,12 @@ func SetupLogger(config LoggerParams) *slog.Logger {
 
 	var baseHandler slog.Handler
 
-	if config.Environment == "development" || config.Environment == "dev" {
+	switch config.Format {
+	case "json":
+		baseHandler = slog.NewJSONHandler(os.Stderr, options)
+	default:
 		options.AddSource = true
 		baseHandler = slog.NewTextHandler(os.Stderr, options)
-	} else {
-		baseHandler = slog.NewJSONHandler(os.Stderr, options)
 	}
 
 	// Create logger with default attributes
@@ -43,7 +37,7 @@ func SetupLogger(config LoggerParams) *slog.Logger {
 		slog.String("environment", config.Environment),
 		slog.String("service", config.ServiceName),
 		slog.String("version", config.Version),
-		slog.String("format", getHandlerType(&config)),
+		slog.String("format", config.Format),
 	)
 
 	return logger
@@ -94,23 +88,6 @@ func replaceDuration(_ []string, a slog.Attr) slog.Attr {
 	duration := a.Value.Duration()
 	// Return new Attr with string value
 	return slog.String(a.Key, duration.String())
-}
-
-// func replaceTimeAttr(_ []string, a slog.Attr) slog.Attr {
-// 	t := a.Value.Time()
-// 	t = t.UTC()
-// 	// 2. Explicitly format the UTC time as an ISO 8601 string with 'Z'
-// 	// Note: The time.RFC3339Nano constant is generally preferred
-// 	// and includes the 'Z' to denote UTC.
-// 	a.Value = slog.StringValue(t.Format(time.RFC3339Nano))
-// 	return a
-// }
-
-func getHandlerType(config *LoggerParams) string {
-	if config.Environment == "development" || config.Environment == "dev" {
-		return "text"
-	}
-	return "json"
 }
 
 // parseLogLevel converts string log level to slog.Level

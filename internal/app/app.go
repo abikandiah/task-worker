@@ -37,12 +37,7 @@ func NewApplication(deps *AppDependencies) *Application {
 		AppDependencies: deps,
 	}
 
-	app.Logger = logging.SetupLogger(logging.LoggerParams{
-		Level:       app.Config.Level,
-		Environment: app.Config.Environment,
-		ServiceName: app.Config.ServiceName,
-		Version:     app.Config.Version,
-	})
+	app.Logger = logging.SetupLogger(deps.Config.Logger)
 
 	taskFactory := factory.NewTaskFactory()
 	app.TaskFactory = taskFactory

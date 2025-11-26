@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/abikandiah/task-worker/internal/platform/db"
+	"github.com/abikandiah/task-worker/internal/platform/logging"
 	"github.com/abikandiah/task-worker/internal/platform/server"
 	"github.com/abikandiah/task-worker/internal/service"
 )
@@ -19,6 +20,13 @@ type Config struct {
 	Worker      *service.Config `mapstructure:"worker"`
 	Server      *server.Config  `mapstructure:"server"`
 	Database    *db.Config      `mapstructure:"database"`
+	Logger      *logging.Config `mapstructure:"logger"`
+}
+
+func (config *Config) updateLoggingEnvironment() {
+	config.Logger.Environment = config.Environment
+	config.Logger.ServiceName = config.ServiceName
+	config.Logger.Version = config.Version
 }
 
 // Loads configuration and panics if it fails
@@ -27,6 +35,7 @@ func MustLoad() *Config {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
+	config.updateLoggingEnvironment()
 	return config
 }
 
@@ -36,5 +45,6 @@ func MustLoadFromFile(path string) *Config {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config from file: %v", err))
 	}
+	config.updateLoggingEnvironment()
 	return config
 }

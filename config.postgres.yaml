@@ -33,22 +33,22 @@ server:
     burst: 200
 
 database:
-  driver: sqlite3
-  host: ""              # Not used for SQLite
-  port: 0               # Not used for SQLite
-  user: ""              # Not used for SQLite
-  password: ""          # Not used for SQLite
-  db_name: ./db/app.db  # SQLite database file path
-  max_open_conns: 1     # SQLite: always 1
-  max_idle_conns: 1     # SQLite: always 1
-  conn_max_lifetime: 0  # SQLite: no expiration needed
-  conn_max_idle_time: 0 # SQLite: no expiration needed
-  ssl_mode: ""          # Not used for SQLite
+  driver: postgres
+  host: localhost
+  port: 5432
+  user: myuser
+  password: ""  # Set via APP_DATABASE_PASSWORD environment variable
+  db_name: myapp_dev
+  max_open_conns: 25
+  max_idle_conns: 25
+  conn_max_lifetime: 5m
+  conn_max_idle_time: 5m
+  ssl_mode: disable
   auto_migrate: true
-  
+
 logger:
   level: info
-  format: text
+  format: json
 
 # Additional Production Settings
 # (You can extend the config struct to include these)

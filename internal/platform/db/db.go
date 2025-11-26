@@ -11,49 +11,85 @@ import (
 	_ "github.com/mattn/go-sqlite3" // SQLite driver
 )
 
-// DB wraps sqlx.DB with additional functionality
 type DB struct {
 	*sqlx.DB
 	driver string
 	cfg    Config
 }
 
-// New creates a new database connection with sqlx for enhanced features
-func New(cfg Config) (*DB, error) {
+func New(config Config) (*DB, error) {
+	// Build DSN from config
+	dsn := config.DSN()
+	if dsn == "" {
+		return nil, fmt.Errorf("unsupported database driver: %s", config.Driver)
+	}
+
 	// Open connection
-	db, err := sqlx.Open(cfg.Driver, cfg.DSN())
+	db, err := sqlx.Open(config.Driver, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	// Configure connection pool
-	db.SetMaxOpenConns(cfg.MaxOpenConns)
-	db.SetMaxIdleConns(cfg.MaxIdleConns)
-	db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
-	db.SetConnMaxIdleTime(cfg.ConnMaxIdleTime)
+	// Driver-specific configuration
+	switch config.Driver {
+	case "sqlite3":
+		// SQLite-specific settings
+		// SQLite only supports one writer at a time
+		db.SetMaxOpenConns(1)
+		db.SetMaxIdleConns(1)
+		db.SetConnMaxLifetime(0) // SQLite connections don't need to be recycled
+
+		// Enable SQLite pragmas for better performance and reliability
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		pragmas := []string{
+			"PRAGMA foreign_keys = ON",    // Enforce foreign key constraints
+			"PRAGMA journal_mode = WAL",   // Write-Ahead Logging for better concurrency
+			"PRAGMA synchronous = NORMAL", // Balance between safety and speed
+			"PRAGMA busy_timeout = 5000",  // Wait up to 5 seconds on locked database
+			"PRAGMA cache_size = -64000",  // Use 64MB of cache (negative = KB)
+		}
+
+		for _, pragma := range pragmas {
+			if _, err := db.ExecContext(ctx, pragma); err != nil {
+				db.Close()
+				return nil, fmt.Errorf("execute pragma: %w", err)
+			}
+		}
+
+	case "postgres":
+		// PostgreSQL-specific settings
+		db.SetMaxOpenConns(config.MaxOpenConns)
+		db.SetMaxIdleConns(config.MaxIdleConns)
+		db.SetConnMaxLifetime(config.ConnMaxLifetime)
+		db.SetConnMaxIdleTime(config.ConnMaxIdleTime)
+
+	default:
+		db.Close()
+		return nil, fmt.Errorf("unsupported database driver: %s", config.Driver)
+	}
 
 	// Verify connection with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
-	return &DB{DB: db, driver: cfg.Driver, cfg: cfg}, nil
+	return &DB{DB: db, driver: config.Driver, cfg: config}, nil
 }
 
-// Close gracefully closes the database connection
 func (db *DB) Close() error {
 	return db.DB.Close()
 }
 
-// Driver returns the database driver name
 func (db *DB) Driver() string {
 	return db.driver
 }
 
-// StatusCheck verifies database connectivity with context
 func (db *DB) StatusCheck(ctx context.Context) error {
 	const q = `SELECT 1`
 	var tmp int

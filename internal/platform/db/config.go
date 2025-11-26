@@ -75,7 +75,6 @@ func (config *Config) LogValue() slog.Value {
 }
 
 func (config *Config) Validate() error {
-	// Validate database
 	if config.Driver == "" {
 		return fmt.Errorf("database driver is required")
 	}

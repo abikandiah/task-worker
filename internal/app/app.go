@@ -113,6 +113,7 @@ func (app *Application) startHttpServer() {
 
 func (app *Application) Close() {
 	app.JobService.Close(context.Background())
+	app.Repository.Close()
 }
 
 func registerDepdenencies(f *factory.TaskFactory, deps *AppDependencies) {

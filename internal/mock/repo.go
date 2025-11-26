@@ -245,3 +245,7 @@ func (repo *MockRepo) GetTaskRuns(ctx context.Context, jobID uuid.UUID) ([]domai
 	}
 	return nil, errors.New("taskRuns not found")
 }
+
+func (repo *MockRepo) Close() error {
+	return nil
+}

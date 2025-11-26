@@ -13,3 +13,7 @@ func NewSQLiteServiceRepository(db *sqlx.DB) *SQLiteServiceRepository {
 		DB: db,
 	}
 }
+
+func (repo *SQLiteServiceRepository) Close() error {
+	return repo.DB.Close()
+}

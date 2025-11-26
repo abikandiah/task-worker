@@ -28,9 +28,15 @@ func New(config *Config) (*DB, error) {
 	}
 
 	if config.Driver == "sqlite3" {
-		if err := util.MakeDirs(config.DBName); err != nil {
+		expandedPath, err := util.ExpandTilde(dsn)
+		if err != nil {
+			return nil, fmt.Errorf("error expanding path: %w", err)
+		}
+		if err := util.MakeDirs(expandedPath); err != nil {
 			return nil, fmt.Errorf("error creating sqlite3 parent dirs: %w", err)
 		}
+
+		dsn = expandedPath
 	}
 
 	// Open connection

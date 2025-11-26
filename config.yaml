@@ -34,16 +34,16 @@ server:
 
 database:
   driver: sqlite3
-  host: ""              # Not used for SQLite
-  port: 0               # Not used for SQLite
-  user: ""              # Not used for SQLite
-  password: ""          # Not used for SQLite
-  db_name: ./db/app.db  # SQLite database file path
+  host: ""         
+  port: 0               
+  user: ""              
+  password: ""         
+  db_name: "~/.local/share/task-worker/app.db"
   max_open_conns: 1     # SQLite: always 1
   max_idle_conns: 1     # SQLite: always 1
   conn_max_lifetime: 0  # SQLite: no expiration needed
   conn_max_idle_time: 0 # SQLite: no expiration needed
-  ssl_mode: ""          # Not used for SQLite
+  ssl_mode: ""          
   auto_migrate: true
   
 logger:

@@ -82,6 +82,9 @@ func (service *JobService) StartWorkers(ctx context.Context) {
 			worker.Run(ctx)
 		}()
 	}
+
+	slog.InfoContext(ctx, "started workers", "jobWorkerCount",
+		service.config.JobWorkerCount, "taskWorkerCounter", service.config.TaskWorkerCount)
 }
 
 func (service *JobService) SubmitJob(ctx context.Context, submission *domain.JobSubmission) (*domain.Job, error) {
@@ -116,6 +119,7 @@ func (service *JobService) SubmitJob(ctx context.Context, submission *domain.Job
 	}
 
 	// Send JobID to Job Worker
+	slog.InfoContext(ctx, "submitted job to queue")
 	service.jobCh <- job.ID
 
 	return job, nil

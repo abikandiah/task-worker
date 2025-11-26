@@ -48,9 +48,38 @@ var executionStateStrings = map[ExecutionState]string{
 	StateRejected: "REJECTED",
 }
 
+var stringToExecutionState = generateStringToExecutionState()
+
+func generateStringToExecutionState() map[string]ExecutionState {
+	res := make(map[string]ExecutionState, len(executionStateStrings))
+	for state, val := range executionStateStrings {
+		res[val] = state
+	}
+	return res
+}
+
 func (s ExecutionState) String() string {
 	if str, ok := executionStateStrings[s]; ok {
 		return str
 	}
 	return fmt.Sprintf("ExecutionState(%d)", s)
+}
+
+func (s ExecutionState) MarshalJSON() ([]byte, error) {
+	return []byte(`"` + s.String() + `"`), nil
+}
+
+func (s *ExecutionState) UnmarshalJSON(b []byte) error {
+	// Remove the surrounding quotes from the JSON string (e.g., "ACTIVE" -> ACTIVE)
+	strVal := string(b)
+	if len(strVal) > 0 && strVal[0] == '"' && strVal[len(strVal)-1] == '"' {
+		strVal = strVal[1 : len(strVal)-1]
+	}
+
+	state, ok := stringToExecutionState[strVal]
+	if !ok {
+		return fmt.Errorf("invalid Status value: %s", strVal)
+	}
+	*s = state
+	return nil
 }

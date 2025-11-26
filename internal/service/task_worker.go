@@ -26,6 +26,9 @@ var ErrTaskTimedOut = errors.New("task timed out")
 func (worker *TaskWorker) Run(ctx context.Context) {
 	for request := range worker.taskCh {
 
+		if request.timeout <= 0 {
+			request.timeout = 60
+		}
 		ctx := context.WithValue(ctx, domain.LKeys.TaskID, request.data.ID)
 		request.errCh <- worker.runTask(ctx, request.data, request.timeout)
 	}
@@ -44,7 +47,7 @@ func (worker *TaskWorker) runTask(ctx context.Context, taskRun *domain.TaskRun, 
 	select {
 	case err := <-errCh:
 		if err != nil {
-			slog.ErrorContext(ctx, "Task failed", slog.Any("error", err))
+			slog.ErrorContext(ctx, "task failed", slog.Any("error", err))
 			worker.updateTaskState(ctx, taskRun, domain.StateError)
 			worker.repository.SaveTaskRun(ctx, *taskRun)
 		}
@@ -68,19 +71,23 @@ func (worker *TaskWorker) ExecuteTask(ctx context.Context, taskRun *domain.TaskR
 
 	// Finalize task in defer block
 	defer func() {
+		worker.updateTaskState(ctx, taskRun, domain.StateFinished)
 		taskRun.EndDate = time.Now()
 		worker.repository.SaveTaskRun(ctx, *taskRun)
 	}()
 
+	// Update ctx with task values
+	ctx = context.WithValue(ctx, domain.LKeys.TaskName, taskRun.Name)
+
 	task, err := worker.taskFactory.CreateTask(taskRun.TaskName, taskRun.Params)
 	if err != nil {
-		slog.ErrorContext(ctx, "Failed to create task", slog.Any("error", err))
+		slog.ErrorContext(ctx, "failed to create task", slog.Any("error", err))
 		return fmt.Errorf("failed to create task %s: %w", taskRun.TaskName, err)
 	}
 
 	res, err := task.Execute(ctx)
 	if err != nil {
-		slog.ErrorContext(ctx, "Task failed", slog.Any("error", err))
+		slog.ErrorContext(ctx, "task failed", slog.Any("error", err))
 		return fmt.Errorf("task failed %s: %w", taskRun.TaskName, err)
 	}
 
@@ -91,5 +98,5 @@ func (worker *TaskWorker) ExecuteTask(ctx context.Context, taskRun *domain.TaskR
 
 func (worker *TaskWorker) updateTaskState(ctx context.Context, taskRun *domain.TaskRun, state domain.ExecutionState) {
 	taskRun.State = state
-	slog.InfoContext(ctx, "TaskRun "+taskRun.State.String())
+	slog.InfoContext(ctx, "task "+taskRun.State.String())
 }

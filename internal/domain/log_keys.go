@@ -5,6 +5,7 @@ type LogKey string
 type LogKeys struct {
 	JobID      LogKey
 	JobName    LogKey
+	JobState   LogKey
 	TaskID     LogKey
 	TaskName   LogKey
 	ConfigID   LogKey
@@ -17,6 +18,7 @@ type LogKeys struct {
 var LKeys = LogKeys{
 	JobID:      "job_id",
 	JobName:    "job_name",
+	JobState:   "job_state",
 	TaskID:     "task_id",
 	TaskName:   "task_name",
 	ConfigID:   "config_id",
@@ -29,6 +31,7 @@ var LKeys = LogKeys{
 var ContextLKeys = []LogKey{
 	LKeys.JobID,
 	LKeys.JobName,
+	LKeys.JobState,
 	LKeys.TaskID,
 	LKeys.TaskName,
 	LKeys.ConfigID,

@@ -66,14 +66,14 @@ func (worker *TaskWorker) runTask(ctx context.Context, taskRun *domain.TaskRun, 
 }
 
 func (worker *TaskWorker) ExecuteTask(ctx context.Context, taskRun *domain.TaskRun) error {
-	taskRun.StartDate = util.TimePtr(time.Now())
+	taskRun.StartDate = util.TimePtr(time.Now().UTC())
 	worker.updateTaskState(ctx, taskRun, domain.StateRunning)
 	worker.repository.SaveTaskRun(ctx, *taskRun)
 
 	// Finalize task in defer block
 	defer func() {
 		worker.updateTaskState(ctx, taskRun, domain.StateFinished)
-		taskRun.EndDate = util.TimePtr(time.Now())
+		taskRun.EndDate = util.TimePtr(time.Now().UTC())
 		worker.repository.SaveTaskRun(ctx, *taskRun)
 	}()
 

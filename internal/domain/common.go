@@ -16,7 +16,7 @@ type IdentitySubmission struct {
 
 type IdentityVersion struct {
 	Identity
-	Version string `json:"version"`
+	Version uuid.UUID `json:"version"`
 }
 
 type Status struct {

@@ -22,7 +22,7 @@ func (repo *SQLiteServiceRepository) SaveTaskRun(ctx context.Context, taskRun do
         INSERT INTO task_runs (
             id, job_id, name, description, task_name, state, start_date, end_date, details
         ) VALUES (
-            :id, :job_id, :name, :description, :task_name, :state, :start_date, :end_date, :detailsjson
+            :id, :job_id, :name, :description, :task_name, :state, :start_date, :end_date, :details
         )
         ON CONFLICT (id) DO UPDATE SET
             job_id = EXCLUDED.job_id,
@@ -32,7 +32,7 @@ func (repo *SQLiteServiceRepository) SaveTaskRun(ctx context.Context, taskRun do
             state = EXCLUDED.state,
             start_date = EXCLUDED.start_date,
             end_date = EXCLUDED.end_date,
-            details = EXCLUDED.detailsjson
+            details = EXCLUDED.details
         WHERE 
             id = :id;
     `
@@ -62,7 +62,7 @@ func (repo *SQLiteServiceRepository) SaveTaskRuns(ctx context.Context, taskRuns 
         INSERT INTO task_runs (
             id, job_id, name, description, task_name, state, start_date, end_date, details
         ) VALUES (
-            :id, :job_id, :name, :description, :task_name, :state, :start_date, :end_date, :detailsjson
+            :id, :job_id, :name, :description, :task_name, :state, :start_date, :end_date, :details
         )
         ON CONFLICT (id) DO UPDATE SET
             job_id = EXCLUDED.job_id,
@@ -72,7 +72,7 @@ func (repo *SQLiteServiceRepository) SaveTaskRuns(ctx context.Context, taskRuns 
             state = EXCLUDED.state,
             start_date = EXCLUDED.start_date,
             end_date = EXCLUDED.end_date,
-            details = EXCLUDED.detailsjson
+            details = EXCLUDED.details
         WHERE 
             id = :id;
     `

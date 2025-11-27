@@ -10,15 +10,18 @@ import (
 type Job struct {
 	Identity
 	Status
-	ConfigID   uuid.UUID  `json:"configId,omitempty"`
-	SubmitDate time.Time  `json:"submitDate"`
-	StartDate  *time.Time `json:"startDate,omitempty"`
-	EndDate    *time.Time `json:"endDate,omitempty"`
+	ConfigID      uuid.UUID  `json:"configId,omitempty"`
+	ConfigVersion uuid.UUID  `json:"configVersion,omitempty"`
+	SubmitDate    time.Time  `json:"submitDate"`
+	StartDate     *time.Time `json:"startDate,omitempty"`
+	EndDate       *time.Time `json:"endDate,omitempty"`
 }
 
 type JobSubmission struct {
 	IdentitySubmission
-	TaskRuns []TaskRun `json:"taskRuns"`
+	ConfigID      uuid.UUID `json:"configId,omitempty"`
+	ConfigVersion uuid.UUID `json:"configVersion,omitempty"`
+	TaskRuns      []TaskRun `json:"taskRuns"`
 }
 
 // GetID implements the required method for cursor pagination.
@@ -28,6 +31,7 @@ func (job Job) GetID() uuid.UUID {
 
 type JobConfig struct {
 	IdentityVersion
+	IsDefault        bool `json:"isDefault"`
 	JobConfigDetails `json:"details"`
 }
 
@@ -49,14 +53,14 @@ func NewDefaultJobConfig() *JobConfig {
 	}
 	identity := Identity{
 		IdentitySubmission: submission,
-		ID:                 uuid.New(),
 	}
 	identityVersion := IdentityVersion{
 		Identity: identity,
-		Version:  "1.0",
+		Version:  uuid.New(),
 	}
 	return &JobConfig{
 		IdentityVersion: identityVersion,
+		IsDefault:       true,
 		JobConfigDetails: JobConfigDetails{
 			JobTimeout:          600,
 			TaskTimeout:         120,
@@ -70,6 +74,9 @@ type JobRepository interface {
 	SaveJob(ctx context.Context, job Job) (*Job, error)
 	GetJob(ctx context.Context, jobID uuid.UUID) (*Job, error)
 	GetAllJobs(ctx context.Context, cursor *CursorInput) (*CursorOutput[Job], error)
+
+	GetDefaultJobConfig(ctx context.Context) (*JobConfig, error)
+	GetOrCreateDefaultJobConfig(ctx context.Context) (*JobConfig, error)
 
 	SaveJobConfig(ctx context.Context, config JobConfig) (*JobConfig, error)
 	GetJobConfig(ctx context.Context, configID uuid.UUID) (*JobConfig, error)

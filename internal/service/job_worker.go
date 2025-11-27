@@ -43,19 +43,11 @@ func (worker *JobWorker) Run(ctx context.Context) {
 }
 
 func (worker *JobWorker) runJob(ctx context.Context, job *domain.Job) error {
-	// Get config, revert to default if none set
-
-	var config *domain.JobConfig
-	if job.ConfigID == uuid.Nil {
-		slog.InfoContext(ctx, "config not specified, using default")
-		config = domain.NewDefaultJobConfig()
-	} else {
-		cfg, err := worker.repository.GetJobConfig(ctx, job.ConfigID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to fetch config", slog.Any("error", err))
-			return fmt.Errorf("failed to fetch config %s: %w", job.ConfigID, err)
-		}
-		config = cfg
+	// Get Config
+	config, err := worker.repository.GetJobConfig(ctx, job.ConfigID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to fetch config", slog.Any("error", err))
+		return fmt.Errorf("failed to fetch config %s: %w", job.ConfigID, err)
 	}
 
 	ctx = context.WithValue(ctx, domain.LKeys.JobName, job.Name)
@@ -85,14 +77,14 @@ func (worker *JobWorker) runJob(ctx context.Context, job *domain.Job) error {
 }
 
 func (worker *JobWorker) executeJob(ctx context.Context, job *domain.Job, config *domain.JobConfig) error {
-	job.StartDate = util.TimePtr(time.Now())
+	job.StartDate = util.TimePtr(time.Now().UTC())
 	worker.updateJobState(ctx, job, domain.StateRunning)
 	worker.repository.SaveJob(ctx, *job)
 
 	// Finalize job in defer block
 	defer func() {
 		worker.updateJobState(ctx, job, domain.StateFinished)
-		job.EndDate = util.TimePtr(time.Now())
+		job.EndDate = util.TimePtr(time.Now().UTC())
 		worker.repository.SaveJob(ctx, *job)
 	}()
 

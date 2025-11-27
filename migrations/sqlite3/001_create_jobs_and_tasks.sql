@@ -7,21 +7,26 @@ CREATE TABLE jobs (
     name TEXT NOT NULL,
 	description TEXT,
 	config_id BLOB NOT NULL,
+	config_version BLOB NOT NULL,
 	state TEXT NOT NULL,
 	progress REAL NOT NULL DEFAULT 0.0,
 	submit_date TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
     start_date  TEXT,
     end_date    TEXT,
 
-	FOREIGN KEY(config_id) REFERENCES job_configs(id) ON DELETE RESTRICT
+	FOREIGN KEY(config_id, config_version) REFERENCES job_configs(id, version) ON DELETE RESTRICT
 );
 
 CREATE TABLE job_configs (
 	id BLOB KEY,
-    version TEXT NOT NULL,
+    version BLOB NOT NULL,
     name TEXT NOT NULL,
 	description TEXT,
 	details TEXT NOT NULL,
+
+	is_default INTEGER NOT NULL DEFAULT 0,
+	default_key INTEGER GENERATED ALWAYS AS (CASE WHEN is_default THEN 1 ELSE NULL END) VIRTUAL,
+	UNIQUE(default_key),
 
 	PRIMARY KEY (id, version)
 );

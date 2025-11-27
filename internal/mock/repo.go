@@ -156,6 +156,14 @@ func (repo *MockRepo) GetAllJobConfigs(ctx context.Context, cursor *domain.Curso
 	}, nil
 }
 
+func (repo *MockRepo) GetOrCreateDefaultJobConfig(ctx context.Context) (*domain.JobConfig, error) {
+	return repo.GetDefaultJobConfig(ctx)
+}
+
+func (repo *MockRepo) GetDefaultJobConfig(ctx context.Context) (*domain.JobConfig, error) {
+	return domain.NewDefaultJobConfig(), nil
+}
+
 func (repo *MockRepo) GetJobConfig(ctx context.Context, configID uuid.UUID) (*domain.JobConfig, error) {
 	repo.mu.RLock()
 	defer repo.mu.RUnlock()

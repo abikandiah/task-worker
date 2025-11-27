@@ -95,7 +95,22 @@ func (service *JobService) SubmitJob(ctx context.Context, submission *domain.Job
 				Description: submission.Description,
 			},
 		},
-		SubmitDate: time.Now(),
+		ConfigID:      submission.ConfigID,
+		ConfigVersion: submission.ConfigVersion,
+		SubmitDate:    time.Now().UTC(),
+	}
+
+	// Get config, revert to default if none set
+	if job.ConfigID == uuid.Nil {
+		slog.InfoContext(ctx, "config not specified, using default")
+
+		if defaultConfig, err := service.repository.GetOrCreateDefaultJobConfig(ctx); err != nil {
+			slog.ErrorContext(ctx, "failed to get or create default config", slog.Any("error", err))
+			return job, fmt.Errorf("failed to get or create default config: %w", err)
+		} else {
+			job.ConfigID = defaultConfig.ID
+			job.ConfigVersion = defaultConfig.Version
+		}
 	}
 
 	// Write to DB

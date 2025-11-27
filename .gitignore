@@ -12,7 +12,6 @@ Created .gitignore file for flag type go.
 # Test binary, built with `go test -c`
 *.test
 
-db
 
 # Code coverage profiles and other test artifacts
 *.out

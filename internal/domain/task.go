@@ -30,9 +30,10 @@ type TaskRunDetails struct {
 }
 
 type TaskRunRepository interface {
-	GetTaskRuns(ctx context.Context, jobID uuid.UUID) ([]TaskRun, error)
+	SaveTaskRun(ctx context.Context, taskRun TaskRun) (*TaskRun, error)
 	SaveTaskRuns(ctx context.Context, taskRuns []TaskRun) ([]TaskRun, error)
 
 	GetTaskRun(ctx context.Context, taskRunID uuid.UUID) (*TaskRun, error)
-	SaveTaskRun(ctx context.Context, taskRun TaskRun) (*TaskRun, error)
+	GetTaskRuns(ctx context.Context, jobID uuid.UUID) ([]TaskRun, error)
+	GetAllTaskRuns(ctx context.Context, cursor *CursorInput) (*CursorOutput[TaskRun], error)
 }

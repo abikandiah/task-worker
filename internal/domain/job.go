@@ -67,12 +67,11 @@ func NewDefaultJobConfig() *JobConfig {
 }
 
 type JobRepository interface {
-	GetAllJobs(ctx context.Context, cursor *CursorInput) (*CursorOutput[Job], error)
-	GetAllJobConfigs(ctx context.Context, cursor *CursorInput) (*CursorOutput[JobConfig], error)
-
-	GetJob(ctx context.Context, jobID uuid.UUID) (*Job, error)
 	SaveJob(ctx context.Context, job Job) (*Job, error)
+	GetJob(ctx context.Context, jobID uuid.UUID) (*Job, error)
+	GetAllJobs(ctx context.Context, cursor *CursorInput) (*CursorOutput[Job], error)
 
-	GetJobConfig(ctx context.Context, configID uuid.UUID) (*JobConfig, error)
 	SaveJobConfig(ctx context.Context, config JobConfig) (*JobConfig, error)
+	GetJobConfig(ctx context.Context, configID uuid.UUID) (*JobConfig, error)
+	GetAllJobConfigs(ctx context.Context, cursor *CursorInput) (*CursorOutput[JobConfig], error)
 }

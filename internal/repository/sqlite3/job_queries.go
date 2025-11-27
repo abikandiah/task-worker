@@ -111,7 +111,7 @@ func (repo *SQLiteServiceRepository) SaveJobConfig(ctx context.Context, config d
         WHERE 
             id = :id;
     `
-	// 3. Execute the query using NamedExecContext
+	// Execute the query using NamedExecContext
 	_, err = repo.DB.NamedExecContext(ctx, query, configDB)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upsert job config %s: %w", configDB.ID, err)

@@ -10,7 +10,7 @@ CREATE TABLE jobs (
 	config_version BLOB NOT NULL,
 	state TEXT NOT NULL,
 	progress REAL NOT NULL DEFAULT 0.0,
-	submit_date TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+	submit_date TEXT,
     start_date  TEXT,
     end_date    TEXT,
 
@@ -18,7 +18,7 @@ CREATE TABLE jobs (
 );
 
 CREATE TABLE job_configs (
-	id BLOB KEY,
+	id BLOB NOT NULL,
     version BLOB NOT NULL,
     name TEXT NOT NULL,
 	description TEXT,

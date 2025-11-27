@@ -7,21 +7,21 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
-	"github.com/abikandiah/task-worker/internal/util"
+	"github.com/abikandiah/task-worker/internal/platform/db"
 	"github.com/google/uuid"
 )
 
 type JobDB struct {
-	ID            uuid.UUID      `db:"id"`
-	Name          string         `db:"name"`
-	Description   sql.NullString `db:"description"`
-	ConfigID      uuid.UUID      `db:"config_id"`
-	ConfigVersion uuid.UUID      `db:"config_version"`
-	State         string         `db:"state"`
-	Progress      float32        `db:"progress"`
-	SubmitDate    time.Time      `db:"submit_date"`
-	StartDate     sql.NullTime   `db:"start_date"`
-	EndDate       sql.NullTime   `db:"end_date"`
+	ID            uuid.UUID       `db:"id"`
+	Name          string          `db:"name"`
+	Description   sql.NullString  `db:"description"`
+	ConfigID      uuid.UUID       `db:"config_id"`
+	ConfigVersion uuid.UUID       `db:"config_version"`
+	State         string          `db:"state"`
+	Progress      float32         `db:"progress"`
+	SubmitDate    db.TextTime     `db:"submit_date"`
+	StartDate     db.NullTextTime `db:"start_date"`
+	EndDate       db.NullTextTime `db:"end_date"`
 }
 
 // GetID implements the required method for cursor pagination.
@@ -37,6 +37,16 @@ func (jobDB *JobDB) ToDomainJob() *domain.Job {
 			Description: jobDB.Description.String,
 		},
 	}
+
+	// Extract time.Time from TextTime
+	var startDate, endDate *time.Time
+	if jobDB.StartDate.Valid {
+		startDate = &jobDB.StartDate.Time
+	}
+	if jobDB.EndDate.Valid {
+		endDate = &jobDB.EndDate.Time
+	}
+
 	return &domain.Job{
 		Identity:      identity,
 		ConfigID:      jobDB.ConfigID,
@@ -45,9 +55,9 @@ func (jobDB *JobDB) ToDomainJob() *domain.Job {
 			State:    domain.ExecutionState(jobDB.State),
 			Progress: jobDB.Progress,
 		},
-		SubmitDate: jobDB.SubmitDate,
-		StartDate:  util.NullTimePtr(jobDB.StartDate),
-		EndDate:    util.NullTimePtr(jobDB.EndDate),
+		SubmitDate: jobDB.SubmitDate.Time,
+		StartDate:  startDate,
+		EndDate:    endDate,
 	}
 }
 
@@ -70,9 +80,9 @@ func FromDomainJob(job *domain.Job) *JobDB {
 		ConfigVersion: job.ConfigVersion,
 		State:         string(job.State),
 		Progress:      job.Progress,
-		SubmitDate:    submitDate,
-		StartDate:     util.TimePtrToNull(job.StartDate),
-		EndDate:       util.TimePtrToNull(job.EndDate),
+		SubmitDate:    db.TextTime{Time: submitDate},
+		StartDate:     db.NewNullTextTime(job.StartDate),
+		EndDate:       db.NewNullTextTime(job.EndDate),
 	}
 }
 

@@ -4,22 +4,23 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
-	"github.com/abikandiah/task-worker/internal/util"
+	"github.com/abikandiah/task-worker/internal/platform/db"
 	"github.com/google/uuid"
 )
 
 type TaskRunDB struct {
-	ID          uuid.UUID      `db:"id"`
-	JobID       uuid.UUID      `db:"job_id"`
-	Name        string         `db:"name"`
-	Description sql.NullString `db:"description"`
-	TaskName    string         `db:"task_name"`
-	State       string         `db:"state"`
-	StartDate   sql.NullTime   `db:"start_date"`
-	EndDate     sql.NullTime   `db:"end_date"`
-	DetailsJSON string         `db:"details"`
+	ID          uuid.UUID       `db:"id"`
+	JobID       uuid.UUID       `db:"job_id"`
+	Name        string          `db:"name"`
+	Description sql.NullString  `db:"description"`
+	TaskName    string          `db:"task_name"`
+	State       string          `db:"state"`
+	StartDate   db.NullTextTime `db:"start_date"`
+	EndDate     db.NullTextTime `db:"end_date"`
+	DetailsJSON string          `db:"details"`
 }
 
 func (taskRunDB *TaskRunDB) ToDomainTaskRun() (*domain.TaskRun, error) {
@@ -30,13 +31,23 @@ func (taskRunDB *TaskRunDB) ToDomainTaskRun() (*domain.TaskRun, error) {
 			Description: taskRunDB.Description.String,
 		},
 	}
+
+	// Extract time.Time from TextTime
+	var startDate, endDate *time.Time
+	if taskRunDB.StartDate.Valid {
+		startDate = &taskRunDB.StartDate.Time
+	}
+	if taskRunDB.EndDate.Valid {
+		endDate = &taskRunDB.EndDate.Time
+	}
+
 	taskRun := &domain.TaskRun{
 		Identity:  identity,
 		JobID:     taskRunDB.JobID,
 		TaskName:  taskRunDB.TaskName,
 		State:     domain.ExecutionState(taskRunDB.State),
-		StartDate: util.NullTimePtr(taskRunDB.StartDate),
-		EndDate:   util.NullTimePtr(taskRunDB.EndDate),
+		StartDate: startDate,
+		EndDate:   endDate,
 	}
 
 	// Unmarshal the DetailsJSON string back into the JobConfigDetails struct
@@ -70,8 +81,8 @@ func FromDomainTaskRun(taskRun domain.TaskRun) (*TaskRunDB, error) {
 		Description: sql.NullString{String: taskRun.Description, Valid: taskRun.Description != ""},
 		TaskName:    taskRun.TaskName,
 		State:       string(taskRun.State),
-		StartDate:   util.TimePtrToNull(taskRun.StartDate),
-		EndDate:     util.TimePtrToNull(taskRun.EndDate),
+		StartDate:   db.NewNullTextTime(taskRun.StartDate),
+		EndDate:     db.NewNullTextTime(taskRun.EndDate),
 		DetailsJSON: string(detailsBytes),
 	}, nil
 }

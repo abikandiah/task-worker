@@ -24,17 +24,17 @@ type Config struct {
 }
 
 func SetConfigDefaults(v *viper.Viper) {
-	v.SetDefault("database.driver", "postgres")
-	v.SetDefault("database.host", "localhost")
-	v.SetDefault("database.port", 5432)
-	v.SetDefault("database.user", "postgres")
-	v.SetDefault("database.password", "postgres")
-	v.SetDefault("database.db_name", "myapp")
-	v.SetDefault("database.max_open_conns", 25)
-	v.SetDefault("database.max_idle_conns", 25)
-	v.SetDefault("database.conn_max_lifetime", 5*time.Minute)
-	v.SetDefault("database.conn_max_idle_time", 5*time.Minute)
-	v.SetDefault("database.ssl_mode", "disable")
+	v.SetDefault("database.driver", "sqlite3")
+	v.SetDefault("database.host", "")
+	v.SetDefault("database.port", "")
+	v.SetDefault("database.user", "")
+	v.SetDefault("database.password", "")
+	v.SetDefault("database.db_name", "~/.local/share/task-worker/app.db")
+	v.SetDefault("database.max_open_conns", 1)
+	v.SetDefault("database.max_idle_conns", 1)
+	v.SetDefault("database.conn_max_lifetime", 0)
+	v.SetDefault("database.conn_max_idle_time", 0)
+	v.SetDefault("database.ssl_mode", "")
 	v.SetDefault("database.auto_migrate", true)
 }
 
@@ -61,7 +61,8 @@ func (c Config) DSN() string {
 			c.Host, c.Port, c.User, c.Password, c.DBName, c.SSLMode,
 		)
 	case "sqlite3":
-		return c.DBName // For SQLite, DBName is the file path
+		// For SQLite, DBName is the file path
+		return c.DBName
 	default:
 		return ""
 	}

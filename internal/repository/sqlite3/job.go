@@ -23,12 +23,9 @@ type JobDB struct {
 	EndDate     sql.NullTime   `db:"end_date"`
 }
 
-type JobConfigDB struct {
-	ID          uuid.UUID      `db:"id"`
-	Name        string         `db:"name"`
-	Description sql.NullString `db:"description"`
-	Version     string         `db:"version"`
-	DetailsJSON string         `db:"details"`
+// GetID implements the required method for cursor pagination.
+func (jdb JobDB) GetID() uuid.UUID {
+	return jdb.ID
 }
 
 func (jobDB *JobDB) ToDomainJob() *domain.Job {
@@ -74,6 +71,19 @@ func FromDomainJob(job *domain.Job) *JobDB {
 		StartDate:   util.TimePtrToNull(job.StartDate),
 		EndDate:     util.TimePtrToNull(job.EndDate),
 	}
+}
+
+type JobConfigDB struct {
+	ID          uuid.UUID      `db:"id"`
+	Name        string         `db:"name"`
+	Description sql.NullString `db:"description"`
+	Version     string         `db:"version"`
+	DetailsJSON string         `db:"details"`
+}
+
+// GetID implements the required method for cursor pagination.
+func (jcdb JobConfigDB) GetID() uuid.UUID {
+	return jcdb.ID
 }
 
 func (configDB *JobConfigDB) ToDomainJobConfig() (*domain.JobConfig, error) {

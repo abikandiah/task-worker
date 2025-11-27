@@ -34,11 +34,11 @@ func NewMockRepo() *MockRepo {
 	}
 }
 
-func (repo *MockRepo) GetAllJobs(ctx context.Context, input *domain.CursorInput) (*domain.CursorOutput[domain.Job], error) {
+func (repo *MockRepo) GetAllJobs(ctx context.Context, cursor *domain.CursorInput) (*domain.CursorOutput[domain.Job], error) {
 	repo.mu.RLock()
 	defer repo.mu.RUnlock()
 
-	input.SetDefaults()
+	cursor.SetDefaults()
 
 	allJobs := make([]domain.Job, 0, len(repo.jobs))
 	for _, job := range repo.jobs {
@@ -48,7 +48,7 @@ func (repo *MockRepo) GetAllJobs(ctx context.Context, input *domain.CursorInput)
 	// Sort based on SortField and SortDir
 	sort.Slice(allJobs, func(i, j int) bool {
 		// Only handling ID for simplicity
-		if input.SortDir == domain.SortASC {
+		if cursor.SortDir == domain.SortASC {
 			return allJobs[i].ID.String() < allJobs[j].ID.String()
 		}
 		return allJobs[i].ID.String() > allJobs[j].ID.String()
@@ -56,10 +56,10 @@ func (repo *MockRepo) GetAllJobs(ctx context.Context, input *domain.CursorInput)
 
 	// Find the Starting Index based on the cursor
 	startIndex := 0
-	if input.HasAfterCursor() {
+	if cursor.HasAfterCursor() {
 		// Find the index of the cursor ID
 		for i, job := range allJobs {
-			if job.ID == input.AfterID {
+			if job.ID == cursor.AfterID {
 				// Start index is the element *after* the cursor
 				startIndex = i + 1
 				break
@@ -68,7 +68,7 @@ func (repo *MockRepo) GetAllJobs(ctx context.Context, input *domain.CursorInput)
 		// If the cursor wasn't found, treat it as the first page (startIndex = 0)
 	}
 
-	endIndex := startIndex + input.Limit
+	endIndex := startIndex + cursor.Limit
 
 	// Adjust bounds
 	if startIndex >= len(allJobs) {
@@ -99,7 +99,7 @@ func (repo *MockRepo) GetAllJobs(ctx context.Context, input *domain.CursorInput)
 	return &domain.CursorOutput[domain.Job]{
 		NextCursor: &nextCursor,
 		PrevCursor: &prevCursor,
-		Limit:      input.Limit,
+		Limit:      cursor.Limit,
 		Data:       pageJobs,
 	}, nil
 }
@@ -139,7 +139,7 @@ func (repo *MockRepo) SaveJob(ctx context.Context, job domain.Job) (*domain.Job,
 	return &jobCopy, nil
 }
 
-func (repo *MockRepo) GetAllJobConfigs(ctx context.Context, input *domain.CursorInput) (*domain.CursorOutput[domain.JobConfig], error) {
+func (repo *MockRepo) GetAllJobConfigs(ctx context.Context, cursor *domain.CursorInput) (*domain.CursorOutput[domain.JobConfig], error) {
 	repo.mu.RLock()
 	defer repo.mu.RUnlock()
 
@@ -151,7 +151,7 @@ func (repo *MockRepo) GetAllJobConfigs(ctx context.Context, input *domain.Cursor
 	return &domain.CursorOutput[domain.JobConfig]{
 		NextCursor: nil,
 		PrevCursor: nil,
-		Limit:      input.Limit,
+		Limit:      cursor.Limit,
 		Data:       configs,
 	}, nil
 }

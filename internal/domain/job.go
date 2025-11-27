@@ -21,6 +21,11 @@ type JobSubmission struct {
 	TaskRuns []TaskRun `json:"taskRuns"`
 }
 
+// GetID implements the required method for cursor pagination.
+func (job Job) GetID() uuid.UUID {
+	return job.ID
+}
+
 type JobConfig struct {
 	IdentityVersion
 	JobConfigDetails `json:"details"`
@@ -31,6 +36,11 @@ type JobConfigDetails struct {
 	TaskTimeout         int  `json:"taskTimeout"`
 	EnableParallelTasks bool `json:"enableParallelTasks"`
 	MaxParallelTasks    int  `json:"maxParallelTasks"`
+}
+
+// GetID implements the required method for cursor pagination.
+func (config JobConfig) GetID() uuid.UUID {
+	return config.ID
 }
 
 func NewDefaultJobConfig() *JobConfig {
@@ -57,8 +67,8 @@ func NewDefaultJobConfig() *JobConfig {
 }
 
 type JobRepository interface {
-	GetAllJobs(ctx context.Context, input *CursorInput) (*CursorOutput[Job], error)
-	GetAllJobConfigs(ctx context.Context, input *CursorInput) (*CursorOutput[JobConfig], error)
+	GetAllJobs(ctx context.Context, cursor *CursorInput) (*CursorOutput[Job], error)
+	GetAllJobConfigs(ctx context.Context, cursor *CursorInput) (*CursorOutput[JobConfig], error)
 
 	GetJob(ctx context.Context, jobID uuid.UUID) (*Job, error)
 	SaveJob(ctx context.Context, job Job) (*Job, error)

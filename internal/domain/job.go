@@ -10,10 +10,10 @@ import (
 type Job struct {
 	Identity
 	Status
-	ConfigID   uuid.UUID `json:"configId,omitempty"`
-	SubmitDate time.Time `json:"submitDate"`
-	StartDate  time.Time `json:"startDate,omitempty"`
-	EndDate    time.Time `json:"endDate,omitempty"`
+	ConfigID   uuid.UUID  `json:"configId,omitempty"`
+	SubmitDate time.Time  `json:"submitDate"`
+	StartDate  *time.Time `json:"startDate,omitempty"`
+	EndDate    *time.Time `json:"endDate,omitempty"`
 }
 
 type JobSubmission struct {
@@ -23,6 +23,10 @@ type JobSubmission struct {
 
 type JobConfig struct {
 	IdentityVersion
+	JobConfigDetails `json:"details"`
+}
+
+type JobConfigDetails struct {
 	JobTimeout          int  `json:"jobTimeout"`
 	TaskTimeout         int  `json:"taskTimeout"`
 	EnableParallelTasks bool `json:"enableParallelTasks"`
@@ -42,11 +46,13 @@ func NewDefaultJobConfig() *JobConfig {
 		Version:  "1.0",
 	}
 	return &JobConfig{
-		IdentityVersion:     identityVersion,
-		JobTimeout:          600,
-		TaskTimeout:         120,
-		EnableParallelTasks: true,
-		MaxParallelTasks:    2,
+		IdentityVersion: identityVersion,
+		JobConfigDetails: JobConfigDetails{
+			JobTimeout:          600,
+			TaskTimeout:         120,
+			EnableParallelTasks: true,
+			MaxParallelTasks:    2,
+		},
 	}
 }
 

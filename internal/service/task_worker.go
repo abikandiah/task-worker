@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
+	"github.com/abikandiah/task-worker/internal/util"
 )
 
 type TaskRunRequest struct {
@@ -65,14 +66,14 @@ func (worker *TaskWorker) runTask(ctx context.Context, taskRun *domain.TaskRun, 
 }
 
 func (worker *TaskWorker) ExecuteTask(ctx context.Context, taskRun *domain.TaskRun) error {
-	taskRun.StartDate = time.Now()
+	taskRun.StartDate = util.TimePtr(time.Now())
 	worker.updateTaskState(ctx, taskRun, domain.StateRunning)
 	worker.repository.SaveTaskRun(ctx, *taskRun)
 
 	// Finalize task in defer block
 	defer func() {
 		worker.updateTaskState(ctx, taskRun, domain.StateFinished)
-		taskRun.EndDate = time.Now()
+		taskRun.EndDate = util.TimePtr(time.Now())
 		worker.repository.SaveTaskRun(ctx, *taskRun)
 	}()
 
@@ -98,5 +99,5 @@ func (worker *TaskWorker) ExecuteTask(ctx context.Context, taskRun *domain.TaskR
 
 func (worker *TaskWorker) updateTaskState(ctx context.Context, taskRun *domain.TaskRun, state domain.ExecutionState) {
 	taskRun.State = state
-	slog.InfoContext(ctx, "task "+taskRun.State.String())
+	slog.InfoContext(ctx, "task "+string(taskRun.State))
 }

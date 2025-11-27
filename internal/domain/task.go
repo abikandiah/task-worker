@@ -14,15 +14,19 @@ type Task interface {
 
 type TaskRun struct {
 	Identity
-	JobID     uuid.UUID       `json:"jobId"`
-	TaskName  string          `json:"taskName"`
-	Params    json.RawMessage `json:"params"`
-	Parallel  bool            `json:"parallel"`
-	State     ExecutionState  `json:"state"`
-	Progress  float32         `json:"progress"`
-	Result    any             `json:"result"`
-	StartDate time.Time       `json:"startDate,omitempty"`
-	EndDate   time.Time       `json:"endDate,omitempty"`
+	JobID          uuid.UUID      `json:"jobId"`
+	TaskName       string         `json:"taskName"`
+	State          ExecutionState `json:"state"`
+	StartDate      *time.Time     `json:"startDate,omitempty"`
+	EndDate        *time.Time     `json:"endDate,omitempty"`
+	TaskRunDetails `json:"details"`
+}
+
+type TaskRunDetails struct {
+	Parallel bool            `json:"parallel"`
+	Params   json.RawMessage `json:"params"`
+	Result   any             `json:"result"`
+	Progress float32         `json:"progress"`
 }
 
 type TaskRunRepository interface {

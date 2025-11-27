@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
+	"github.com/abikandiah/task-worker/internal/util"
 	"github.com/google/uuid"
 )
 
@@ -84,14 +85,14 @@ func (worker *JobWorker) runJob(ctx context.Context, job *domain.Job) error {
 }
 
 func (worker *JobWorker) executeJob(ctx context.Context, job *domain.Job, config *domain.JobConfig) error {
-	job.StartDate = time.Now()
+	job.StartDate = util.TimePtr(time.Now())
 	worker.updateJobState(ctx, job, domain.StateRunning)
 	worker.repository.SaveJob(ctx, *job)
 
 	// Finalize job in defer block
 	defer func() {
 		worker.updateJobState(ctx, job, domain.StateFinished)
-		job.EndDate = time.Now()
+		job.EndDate = util.TimePtr(time.Now())
 		worker.repository.SaveJob(ctx, *job)
 	}()
 
@@ -144,5 +145,5 @@ func (worker *JobWorker) executeJob(ctx context.Context, job *domain.Job, config
 
 func (worker *JobWorker) updateJobState(ctx context.Context, job *domain.Job, state domain.ExecutionState) {
 	job.State = state
-	slog.InfoContext(ctx, "job "+job.State.String())
+	slog.InfoContext(ctx, "job "+string(job.State))
 }

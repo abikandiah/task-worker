@@ -1,151 +1,143 @@
 package sqlite3
 
 import (
+	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/platform/db"
+	"github.com/abikandiah/task-worker/internal/repository/models"
 	"github.com/google/uuid"
 )
 
-type JobDB struct {
-	ID            uuid.UUID       `db:"id"`
-	Name          string          `db:"name"`
-	Description   sql.NullString  `db:"description"`
-	ConfigID      uuid.UUID       `db:"config_id"`
-	ConfigVersion uuid.UUID       `db:"config_version"`
-	State         string          `db:"state"`
-	Progress      float32         `db:"progress"`
-	SubmitDate    db.TextTime     `db:"submit_date"`
-	StartDate     db.NullTextTime `db:"start_date"`
-	EndDate       db.NullTextTime `db:"end_date"`
-}
+// --- SQL Constants for jobs table ---
+const selectJobFields = "id, name, description, config_id, config_version, state, progress, submit_date, start_date, end_date"
 
-// GetID implements the required method for cursor pagination.
-func (jdb JobDB) GetID() uuid.UUID {
-	return jdb.ID
+const selectJobByIDSQL = `
+    SELECT 
+        ` + selectJobFields + `
+    FROM 
+        jobs
+    WHERE 
+        id = ?
+`
+
+const insertJobSQL = `
+    INSERT INTO jobs (
+        ` + selectJobFields + `
+    ) VALUES (
+		:id, :name, :description, :config_id, :config_version, :state, :progress, :submit_date, :start_date, :end_date
+    )
+`
+
+const upsertJobSQL = insertJobSQL + `
+	ON CONFLICT (id) DO UPDATE SET
+		name = EXCLUDED.name,
+		description = EXCLUDED.description,
+		config_id = EXCLUDED.config_id,
+		config_version = EXCLUDED.config_version,
+		state = EXCLUDED.state,
+		progress = EXCLUDED.progress,
+		start_date = EXCLUDED.start_date,
+		end_date = EXCLUDED.end_date
+`
+
+const selectPaginationJobSQL = `
+    SELECT 
+        ` + selectJobFields + `
+    FROM 
+        jobs
+`
+
+type JobDB struct {
+	models.CommonJobDB
+	SubmitDate db.TextTime     `db:"submit_date"`
+	StartDate  db.NullTextTime `db:"start_date"`
+	EndDate    db.NullTextTime `db:"end_date"`
 }
 
 func (jobDB *JobDB) ToDomainJob() *domain.Job {
-	identity := domain.Identity{
-		ID: jobDB.ID,
-		IdentitySubmission: domain.IdentitySubmission{
-			Name:        jobDB.Name,
-			Description: jobDB.Description.String,
-		},
-	}
+	job := jobDB.ToDomainJobBase()
 
 	// Extract time.Time from TextTime
-	var startDate, endDate *time.Time
+	job.SubmitDate = jobDB.SubmitDate.Time
 	if jobDB.StartDate.Valid {
-		startDate = &jobDB.StartDate.Time
+		job.StartDate = &jobDB.StartDate.Time
 	}
 	if jobDB.EndDate.Valid {
-		endDate = &jobDB.EndDate.Time
+		job.EndDate = &jobDB.EndDate.Time
 	}
 
-	return &domain.Job{
-		Identity:      identity,
-		ConfigID:      jobDB.ConfigID,
-		ConfigVersion: jobDB.ConfigVersion,
-		Status: domain.Status{
-			State:    domain.ExecutionState(jobDB.State),
-			Progress: jobDB.Progress,
-		},
-		SubmitDate: jobDB.SubmitDate.Time,
-		StartDate:  startDate,
-		EndDate:    endDate,
-	}
+	return job
 }
 
 func FromDomainJob(job *domain.Job) *JobDB {
-	// Check if new
 	isNew := job.ID == uuid.Nil
-
-	jobID := job.ID
 	submitDate := job.SubmitDate
 	if isNew {
-		jobID = uuid.New()
 		submitDate = time.Now().UTC()
 	}
 
+	commonJobDb := models.NewCommonJobDB(job)
+
 	return &JobDB{
-		ID:            jobID,
-		Name:          job.Name,
-		Description:   sql.NullString{String: job.Description, Valid: job.Description != ""},
-		ConfigID:      job.ConfigID,
-		ConfigVersion: job.ConfigVersion,
-		State:         string(job.State),
-		Progress:      job.Progress,
-		SubmitDate:    db.TextTime{Time: submitDate},
-		StartDate:     db.NewNullTextTime(job.StartDate),
-		EndDate:       db.NewNullTextTime(job.EndDate),
+		CommonJobDB: commonJobDb,
+		SubmitDate:  db.TextTime{Time: submitDate},
+		StartDate:   db.NewNullTextTime(job.StartDate),
+		EndDate:     db.NewNullTextTime(job.EndDate),
 	}
 }
 
-type JobConfigDB struct {
-	ID          uuid.UUID      `db:"id"`
-	Version     uuid.UUID      `db:"version"`
-	Name        string         `db:"name"`
-	Description sql.NullString `db:"description"`
-	IsDefault   bool           `db:"is_default"`
-	DetailsJSON string         `db:"details"`
-}
-
-// GetID implements the required method for cursor pagination.
-func (configDB JobConfigDB) GetID() uuid.UUID {
-	return configDB.ID
-}
-
-func (configDB *JobConfigDB) ToDomainJobConfig() (*domain.JobConfig, error) {
-	identity := domain.Identity{
-		ID: configDB.ID,
-		IdentitySubmission: domain.IdentitySubmission{
-			Name:        configDB.Name,
-			Description: configDB.Description.String,
-		},
-	}
-	config := &domain.JobConfig{
-		IdentityVersion: domain.IdentityVersion{
-			Identity: identity,
-			Version:  configDB.Version,
-		},
-		IsDefault: configDB.IsDefault,
-	}
-
-	// Unmarshal the DetailsJSON string back into the JobConfigDetails struct
-	if configDB.DetailsJSON != "" {
-		err := json.Unmarshal([]byte(configDB.DetailsJSON), &config.JobConfigDetails)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal JobConfig details JSON: %w", err)
-		}
-	}
-
-	return config, nil
-}
-
-func FromDomainJobConfig(config domain.JobConfig) (JobConfigDB, error) {
-	// Marshal the Details struct into a JSON string
-	detailsBytes, err := json.Marshal(config.JobConfigDetails)
+func (repo *SQLiteServiceRepository) SaveJob(ctx context.Context, job domain.Job) (*domain.Job, error) {
+	jobDB := FromDomainJob(&job)
+	// Execute the query using NamedExecContext
+	_, err := repo.DB.NamedExecContext(ctx, upsertJobSQL, jobDB)
 	if err != nil {
-		return JobConfigDB{}, fmt.Errorf("failed to marshal JobConfig details: %w", err)
+		return nil, fmt.Errorf("failed to upsert job %s: %w", jobDB.ID, err)
 	}
 
-	// Set ID if new config
-	jobConfigID := config.ID
-	if config.ID == uuid.Nil {
-		jobConfigID = uuid.New()
+	return jobDB.ToDomainJob(), nil
+}
+
+func (repo *SQLiteServiceRepository) GetJob(ctx context.Context, jobID uuid.UUID) (*domain.Job, error) {
+	// Excute query
+	var jobDB JobDB
+	err := repo.DB.GetContext(ctx, &jobDB, selectJobByIDSQL, jobID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get job with ID %s: %w", jobID, err)
 	}
 
-	return JobConfigDB{
-		ID:          jobConfigID,
-		Name:        config.Name,
-		Description: sql.NullString{String: config.Description, Valid: config.Description != ""},
-		Version:     config.Version,
-		IsDefault:   config.IsDefault,
-		DetailsJSON: string(detailsBytes),
-	}, nil
+	return jobDB.ToDomainJob(), nil
+}
+
+func (repo *SQLiteServiceRepository) GetAllJobs(ctx context.Context, cursor *domain.CursorInput) (*domain.CursorOutput[domain.Job], error) {
+	pq := &db.PaginationQuery{
+		BaseQuery:     selectPaginationJobSQL,
+		AllowedFields: []string{"id", "state", "submit_date", "start_date", "end_date"},
+	}
+
+	// Paginate with DB struct for correct sqlx scanning
+	dbOutput, err := db.Paginate[JobDB](ctx, repo.DB, pq, cursor)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert JobDB slice to Job slice
+	domainJobs := make([]domain.Job, len(dbOutput.Data))
+	for i, jobDB := range dbOutput.Data {
+		domainJobs[i] = *jobDB.ToDomainJob()
+	}
+
+	domainOutput := &domain.CursorOutput[domain.Job]{
+		Limit:      dbOutput.Limit,
+		Data:       domainJobs,
+		NextCursor: dbOutput.NextCursor,
+		PrevCursor: dbOutput.PrevCursor,
+	}
+	return domainOutput, nil
 }

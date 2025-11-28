@@ -10,7 +10,7 @@ CREATE TABLE jobs (
 	config_version BLOB NOT NULL,
 	state TEXT NOT NULL,
 	progress REAL NOT NULL DEFAULT 0.0,
-	submit_date TEXT,
+	submit_date TEXT NOT NULL,
     start_date  TEXT,
     end_date    TEXT,
 

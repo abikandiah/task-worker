@@ -1,7 +1,6 @@
 package domain
 
 import (
-	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -68,17 +67,4 @@ func NewDefaultJobConfig() *JobConfig {
 			MaxParallelTasks:    2,
 		},
 	}
-}
-
-type JobRepository interface {
-	SaveJob(ctx context.Context, job Job) (*Job, error)
-	GetJob(ctx context.Context, jobID uuid.UUID) (*Job, error)
-	GetAllJobs(ctx context.Context, cursor *CursorInput) (*CursorOutput[Job], error)
-
-	GetDefaultJobConfig(ctx context.Context) (*JobConfig, error)
-	GetOrCreateDefaultJobConfig(ctx context.Context) (*JobConfig, error)
-
-	SaveJobConfig(ctx context.Context, config JobConfig) (*JobConfig, error)
-	GetJobConfig(ctx context.Context, configID uuid.UUID) (*JobConfig, error)
-	GetAllJobConfigs(ctx context.Context, cursor *CursorInput) (*CursorOutput[JobConfig], error)
 }

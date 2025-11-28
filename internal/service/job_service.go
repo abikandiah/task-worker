@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
+	"github.com/abikandiah/task-worker/internal/factory"
+	"github.com/abikandiah/task-worker/internal/repository"
 	"github.com/google/uuid"
 )
 
@@ -22,14 +24,14 @@ type JobService struct {
 
 type jobServiceDependencies struct {
 	config      *Config
-	repository  domain.ServiceRepository
-	taskFactory domain.TaskFactory
+	repository  repository.ServiceRepository
+	taskFactory *factory.TaskFactory
 }
 
 type JobServiceParams struct {
 	Config      *Config
-	Repository  domain.ServiceRepository
-	TaskFactory domain.TaskFactory
+	Repository  repository.ServiceRepository
+	TaskFactory *factory.TaskFactory
 }
 
 func NewJobService(params *JobServiceParams) *JobService {

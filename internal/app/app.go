@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/abikandiah/task-worker/config"
-	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/factory"
 	"github.com/abikandiah/task-worker/internal/platform/db"
 	"github.com/abikandiah/task-worker/internal/platform/logging"
 	"github.com/abikandiah/task-worker/internal/platform/server"
+	"github.com/abikandiah/task-worker/internal/repository"
 	"github.com/abikandiah/task-worker/internal/repository/sqlite3"
 	"github.com/abikandiah/task-worker/internal/service"
 	"github.com/abikandiah/task-worker/internal/task"
@@ -23,8 +23,8 @@ import (
 
 type AppDependencies struct {
 	Config      *config.Config
-	Repository  domain.ServiceRepository
-	TaskFactory domain.TaskFactory
+	Repository  repository.ServiceRepository
+	TaskFactory *factory.TaskFactory
 	Logger      *slog.Logger
 }
 

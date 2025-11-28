@@ -28,12 +28,3 @@ type TaskRunDetails struct {
 	Result   any             `json:"result"`
 	Progress float32         `json:"progress"`
 }
-
-type TaskRunRepository interface {
-	SaveTaskRun(ctx context.Context, taskRun TaskRun) (*TaskRun, error)
-	SaveTaskRuns(ctx context.Context, taskRuns []TaskRun) ([]TaskRun, error)
-
-	GetTaskRun(ctx context.Context, taskRunID uuid.UUID) (*TaskRun, error)
-	GetTaskRuns(ctx context.Context, jobID uuid.UUID) ([]TaskRun, error)
-	GetAllTaskRuns(ctx context.Context, cursor *CursorInput) (*CursorOutput[TaskRun], error)
-}

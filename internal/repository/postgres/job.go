@@ -1,95 +1,153 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
+	"github.com/abikandiah/task-worker/internal/platform/db"
+	"github.com/abikandiah/task-worker/internal/repository/models"
 	"github.com/google/uuid"
 )
 
-type JobDB struct {
-	ID            uuid.UUID      `db:"id"`
-	Name          string         `db:"name"`
-	Description   sql.NullString `db:"description"`
-	ConfigID      uuid.UUID      `db:"config_id"`
-	ConfigVersion uuid.UUID      `db:"config_version"`
-	State         string         `db:"state"`
-	Progress      float32        `db:"progress"`
-	SubmitDate    time.Time      `db:"submit_date"`
-	StartDate     sql.NullTime   `db:"start_date"`
-	EndDate       sql.NullTime   `db:"end_date"`
-}
+// --- SQL Constants for jobs table ---
+const selectJobFields = "id, name, description, config_id, config_version, state, progress, submit_date, start_date, end_date"
 
-// GetID implements the required method for cursor pagination.
-func (jdb JobDB) GetID() uuid.UUID {
-	return jdb.ID
+const selectJobByIDSQL = `
+    SELECT 
+        ` + selectJobFields + `
+    FROM 
+        jobs
+    WHERE 
+        id = $1
+`
+
+const insertJobSQL = `
+    INSERT INTO jobs (
+        ` + selectJobFields + `
+    ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    )
+`
+
+const upsertJobSQL = insertJobSQL + `
+    ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        config_id = EXCLUDED.config_id,
+        config_version = EXCLUDED.config_version,
+        state = EXCLUDED.state,
+        progress = EXCLUDED.progress,
+        start_date = EXCLUDED.start_date,
+        end_date = EXCLUDED.end_date
+`
+
+const selectPaginationJobSQL = `
+    SELECT 
+        ` + selectJobFields + `
+    FROM 
+        jobs
+`
+
+type JobDB struct {
+	models.CommonJobDB
+	SubmitDate time.Time  `db:"submit_date"`
+	StartDate  *time.Time `db:"start_date"`
+	EndDate    *time.Time `db:"end_date"`
 }
 
 func (jobDB *JobDB) ToDomainJob() *domain.Job {
-	identity := domain.Identity{
-		ID: jobDB.ID,
-		IdentitySubmission: domain.IdentitySubmission{
-			Name:        jobDB.Name,
-			Description: jobDB.Description.String,
-		},
-	}
+	job := jobDB.ToDomainJobBase()
 
-	var startDate, endDate *time.Time
-	// Standard conversion from sql.NullTime to *time.Time
-	if jobDB.StartDate.Valid {
-		startDate = &jobDB.StartDate.Time
-	}
-	if jobDB.EndDate.Valid {
-		endDate = &jobDB.EndDate.Time
-	}
+	// Use native time.Time types directly
+	job.SubmitDate = jobDB.SubmitDate
+	job.StartDate = jobDB.StartDate
+	job.EndDate = jobDB.EndDate
 
-	return &domain.Job{
-		Identity:      identity,
-		ConfigID:      jobDB.ConfigID,
-		ConfigVersion: jobDB.ConfigVersion,
-		Status: domain.Status{
-			State:    domain.ExecutionState(jobDB.State),
-			Progress: jobDB.Progress,
-		},
-		SubmitDate: jobDB.SubmitDate, // Direct value use
-		StartDate:  startDate,
-		EndDate:    endDate,
-	}
+	return job
 }
 
 func FromDomainJob(job *domain.Job) *JobDB {
 	isNew := job.ID == uuid.Nil
-
-	jobID := job.ID
 	submitDate := job.SubmitDate
+
 	if isNew {
-		jobID = uuid.New()
 		submitDate = time.Now().UTC()
 	}
 
-	// Custom utility functions (like util.TimePtrToNull) would typically be used here
-	// to convert *time.Time to sql.NullTime, but for simplicity, we'll inline the standard logic.
-
-	var startDate sql.NullTime
-	if job.StartDate != nil {
-		startDate = sql.NullTime{Time: *job.StartDate, Valid: true}
-	}
-	var endDate sql.NullTime
-	if job.EndDate != nil {
-		endDate = sql.NullTime{Time: *job.EndDate, Valid: true}
-	}
+	commonJobDb := models.NewCommonJobDB(job)
 
 	return &JobDB{
-		ID:            jobID,
-		Name:          job.Name,
-		Description:   sql.NullString{String: job.Description, Valid: job.Description != ""},
-		ConfigID:      job.ConfigID,
-		ConfigVersion: job.ConfigVersion,
-		State:         string(job.State),
-		Progress:      job.Progress,
-		SubmitDate:    submitDate,
-		StartDate:     startDate, // Uses standard sql.NullTime
-		EndDate:       endDate,   // Uses standard sql.NullTime
+		CommonJobDB: commonJobDb,
+		SubmitDate:  submitDate,
+		StartDate:   job.StartDate,
+		EndDate:     job.EndDate,
 	}
+}
+
+func (repo *PostgresServiceRepository) SaveJob(ctx context.Context, job domain.Job) (*domain.Job, error) {
+	jobDB := FromDomainJob(&job)
+
+	// Execute the query using positional parameters
+	_, err := repo.DB.ExecContext(ctx, upsertJobSQL,
+		jobDB.ID,
+		jobDB.Name,
+		jobDB.Description,
+		jobDB.ConfigID,
+		jobDB.ConfigVersion,
+		jobDB.State,
+		jobDB.Progress,
+		jobDB.SubmitDate,
+		jobDB.StartDate,
+		jobDB.EndDate,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upsert job %s: %w", jobDB.ID, err)
+	}
+
+	return jobDB.ToDomainJob(), nil
+}
+
+func (repo *PostgresServiceRepository) GetJob(ctx context.Context, jobID uuid.UUID) (*domain.Job, error) {
+	// Execute query
+	var jobDB JobDB
+	err := repo.DB.GetContext(ctx, &jobDB, selectJobByIDSQL, jobID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get job with ID %s: %w", jobID, err)
+	}
+
+	return jobDB.ToDomainJob(), nil
+}
+
+func (repo *PostgresServiceRepository) GetAllJobs(ctx context.Context, cursor *domain.CursorInput) (*domain.CursorOutput[domain.Job], error) {
+	pq := &db.PaginationQuery{
+		BaseQuery:     selectPaginationJobSQL,
+		AllowedFields: []string{"id", "state", "submit_date", "start_date", "end_date"},
+	}
+
+	// Paginate with DB struct for correct sqlx scanning
+	dbOutput, err := db.Paginate[JobDB](ctx, repo.DB, pq, cursor)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert JobDB slice to Job slice
+	domainJobs := make([]domain.Job, len(dbOutput.Data))
+	for i, jobDB := range dbOutput.Data {
+		domainJobs[i] = *jobDB.ToDomainJob()
+	}
+
+	domainOutput := &domain.CursorOutput[domain.Job]{
+		Limit:      dbOutput.Limit,
+		Data:       domainJobs,
+		NextCursor: dbOutput.NextCursor,
+		PrevCursor: dbOutput.PrevCursor,
+	}
+
+	return domainOutput, nil
 }

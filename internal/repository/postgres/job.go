@@ -9,15 +9,15 @@ import (
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/platform/db"
 	"github.com/abikandiah/task-worker/internal/repository/models"
+	"github.com/abikandiah/task-worker/internal/repository/queries"
 	"github.com/google/uuid"
 )
 
 // --- SQL Constants for jobs table ---
-const selectJobFields = "id, name, description, config_id, config_version, state, progress, submit_date, start_date, end_date"
 
 const selectJobByIDSQL = `
     SELECT 
-        ` + selectJobFields + `
+        ` + queries.SelectJobFields + `
     FROM 
         jobs
     WHERE 
@@ -26,30 +26,13 @@ const selectJobByIDSQL = `
 
 const insertJobSQL = `
     INSERT INTO jobs (
-        ` + selectJobFields + `
+        ` + queries.SelectJobFields + `
     ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
     )
 `
 
-const upsertJobSQL = insertJobSQL + `
-    ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        description = EXCLUDED.description,
-        config_id = EXCLUDED.config_id,
-        config_version = EXCLUDED.config_version,
-        state = EXCLUDED.state,
-        progress = EXCLUDED.progress,
-        start_date = EXCLUDED.start_date,
-        end_date = EXCLUDED.end_date
-`
-
-const selectPaginationJobSQL = `
-    SELECT 
-        ` + selectJobFields + `
-    FROM 
-        jobs
-`
+const upsertJobSQL = insertJobSQL + queries.UpsertJobConflictClause
 
 type JobDB struct {
 	models.CommonJobDB
@@ -126,8 +109,8 @@ func (repo *PostgresServiceRepository) GetJob(ctx context.Context, jobID uuid.UU
 
 func (repo *PostgresServiceRepository) GetAllJobs(ctx context.Context, cursor *domain.CursorInput) (*domain.CursorOutput[domain.Job], error) {
 	pq := &db.PaginationQuery{
-		BaseQuery:     selectPaginationJobSQL,
-		AllowedFields: []string{"id", "state", "submit_date", "start_date", "end_date"},
+		BaseQuery:     queries.SelectPaginationJobSQL,
+		AllowedFields: queries.JobPaginationAllowedFields,
 	}
 
 	// Paginate with DB struct for correct sqlx scanning

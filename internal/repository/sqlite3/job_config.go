@@ -9,24 +9,15 @@ import (
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/platform/db"
 	"github.com/abikandiah/task-worker/internal/repository/models"
+	"github.com/abikandiah/task-worker/internal/repository/queries"
 	"github.com/google/uuid"
 )
 
 // --- SQL Constants for job_configs table ---
-const selectConfigFields = "id, name, description, is_default, version, details"
-
-const selectDefaultJobConfigSQL = `
-    SELECT 
-        ` + selectConfigFields + `
-    FROM 
-        job_configs
-    WHERE 
-        is_default = TRUE
-`
 
 const selectJobConfigByIDSQL = `
     SELECT 
-        ` + selectConfigFields + `
+        ` + queries.SelectConfigFields + `
     FROM 
         job_configs
     WHERE 
@@ -35,26 +26,13 @@ const selectJobConfigByIDSQL = `
 
 const insertJobConfigSQL = `
     INSERT INTO job_configs (
-        ` + selectConfigFields + `
+        ` + queries.SelectConfigFields + `
     ) VALUES (
         :id, :name, :description, :is_default, :version, :details
     )
 `
 
-const upsertJobConfigSQL = insertJobConfigSQL + `
-    ON CONFLICT (id, version) DO UPDATE SET
-        name = EXCLUDED.name,
-        description = EXCLUDED.description,
-        is_default = EXCLUDED.is_default,
-        details = EXCLUDED.details;
-`
-
-const selectPaginationConfigSQL = `
-    SELECT 
-        ` + selectConfigFields + `
-    FROM 
-        job_configs
-`
+const upsertJobConfigSQL = insertJobConfigSQL + queries.UpsertJobConfigConflictClause
 
 type JobConfigDB struct {
 	models.CommonJobConfigDB
@@ -109,7 +87,7 @@ func (repo *SQLiteServiceRepository) GetOrCreateDefaultJobConfig(ctx context.Con
 func (repo *SQLiteServiceRepository) GetDefaultJobConfig(ctx context.Context) (*domain.JobConfig, error) {
 	// Excute query
 	var configDB JobConfigDB
-	err := repo.DB.GetContext(ctx, &configDB, selectDefaultJobConfigSQL)
+	err := repo.DB.GetContext(ctx, &configDB, queries.SelectDefaultJobConfigSQL)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -162,8 +140,8 @@ func (repo *SQLiteServiceRepository) GetJobConfig(ctx context.Context, configID 
 
 func (repo *SQLiteServiceRepository) GetAllJobConfigs(ctx context.Context, cursor *domain.CursorInput) (*domain.CursorOutput[domain.JobConfig], error) {
 	pq := &db.PaginationQuery{
-		BaseQuery:     selectPaginationConfigSQL,
-		AllowedFields: []string{"id", "name", "version"},
+		BaseQuery:     queries.SelectPaginationConfigSQL,
+		AllowedFields: queries.JobConfigPaginationAllowedFields,
 	}
 
 	// Paginate with DB struct for correct sqlx scanning

@@ -1,70 +1,44 @@
-package sqlite3
+package postgres
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/abikandiah/task-worker/internal/domain"
 	"github.com/abikandiah/task-worker/internal/platform/db"
 	"github.com/abikandiah/task-worker/internal/repository/models"
+	"github.com/abikandiah/task-worker/internal/repository/queries"
 	"github.com/google/uuid"
 )
 
 // --- SQL Constants for task_runs table ---
-const selectTaskRunFields = "id, job_id, name, description, task_name, state, start_date, end_date, details"
-
 const selectTaskRunByIDSQL = `
     SELECT 
-        ` + selectTaskRunFields + `
+        ` + queries.SelectTaskRunFields + `
     FROM 
         task_runs
     WHERE 
-        id = ?
+        id = $1
 `
 
 const insertTaskRunSQL = `
     INSERT INTO task_runs (
-        ` + selectTaskRunFields + `
+        ` + queries.SelectTaskRunFields + `
     ) VALUES (
-		:id, :job_id, :name, :description, :task_name, :state, :start_date, :end_date, :details
+		$1, $2, $3, $4, $5, $6, $7, $8, $9
     )
 `
 
-const upsertTaskRunSQL = insertTaskRunSQL + `
-	ON CONFLICT (id) DO UPDATE SET
-		job_id = EXCLUDED.job_id,
-		name = EXCLUDED.name,
-		description = EXCLUDED.description,
-		task_name = EXCLUDED.task_name,
-		state = EXCLUDED.state,
-		start_date = EXCLUDED.start_date,
-		end_date = EXCLUDED.end_date,
-		details = EXCLUDED.details
-`
+const upsertTaskRunSQL = insertTaskRunSQL + queries.UpsertTaskRunConflictClause
 
-const selectAllTaskRunsSQL = `
-	SELECT 
-		` + selectTaskRunFields + `
-	FROM 
-		task_runs
-	WHERE 
-		job_id = ?
-	ORDER BY 
-		start_date ASC, id ASC
-`
-
-const selectPaginationTaskRunSQL = `
-    SELECT 
-        ` + selectTaskRunFields + `
-    FROM 
-        task_runs
-`
+const selectAllTaskRunsSQL = queries.SelectAllTaskRunsBaseSQL + `$1` + queries.SelectAllTaskRunsOrderSQL
 
 type TaskRunDB struct {
 	models.CommonTaskRunDB
-	StartDate db.NullTextTime `db:"start_date"`
-	EndDate   db.NullTextTime `db:"end_date"`
+	StartDate *time.Time `db:"start_date"`
+	EndDate   *time.Time `db:"end_date"`
 }
 
 func (taskRunDB *TaskRunDB) ToDomainTaskRun() (*domain.TaskRun, error) {
@@ -73,13 +47,9 @@ func (taskRunDB *TaskRunDB) ToDomainTaskRun() (*domain.TaskRun, error) {
 		return taskRun, err
 	}
 
-	// Extract time.Time from TextTime
-	if taskRunDB.StartDate.Valid {
-		taskRun.StartDate = &taskRunDB.StartDate.Time
-	}
-	if taskRunDB.EndDate.Valid {
-		taskRun.EndDate = &taskRunDB.EndDate.Time
-	}
+	// Use native time.Time types directly
+	taskRun.StartDate = taskRunDB.StartDate
+	taskRun.EndDate = taskRunDB.EndDate
 
 	return taskRun, nil
 }
@@ -92,20 +62,30 @@ func FromDomainTaskRun(taskRun domain.TaskRun) (*TaskRunDB, error) {
 
 	return &TaskRunDB{
 		CommonTaskRunDB: commonTaskRunDb,
-		StartDate:       db.NewNullTextTime(taskRun.StartDate),
-		EndDate:         db.NewNullTextTime(taskRun.EndDate),
+		StartDate:       taskRun.StartDate,
+		EndDate:         taskRun.EndDate,
 	}, nil
 }
 
-func (repo *SQLiteServiceRepository) SaveTaskRun(ctx context.Context, taskRun domain.TaskRun) (*domain.TaskRun, error) {
+func (repo *PostgresServiceRepository) SaveTaskRun(ctx context.Context, taskRun domain.TaskRun) (*domain.TaskRun, error) {
 	// Convert domain model to database model, handling JSON marshaling errors
 	taskRunDB, err := FromDomainTaskRun(taskRun)
 	if err != nil {
 		return nil, err
 	}
 
-	// Execute the query using NamedExecContext
-	_, err = repo.DB.NamedExecContext(ctx, upsertTaskRunSQL, taskRunDB)
+	// Execute the query using positional parameters
+	_, err = repo.DB.ExecContext(ctx, upsertTaskRunSQL,
+		taskRunDB.ID,
+		taskRunDB.JobID,
+		taskRunDB.Name,
+		taskRunDB.Description,
+		taskRunDB.TaskName,
+		taskRunDB.State,
+		taskRunDB.StartDate,
+		taskRunDB.EndDate,
+		taskRunDB.DetailsJSON,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upsert task run %s: %w", taskRunDB.ID, err)
 	}
@@ -113,7 +93,7 @@ func (repo *SQLiteServiceRepository) SaveTaskRun(ctx context.Context, taskRun do
 	return taskRunDB.ToDomainTaskRun()
 }
 
-func (repo *SQLiteServiceRepository) SaveTaskRuns(ctx context.Context, taskRuns []domain.TaskRun) ([]domain.TaskRun, error) {
+func (repo *PostgresServiceRepository) SaveTaskRuns(ctx context.Context, taskRuns []domain.TaskRun) ([]domain.TaskRun, error) {
 	if len(taskRuns) == 0 {
 		return []domain.TaskRun{}, nil
 	}
@@ -135,7 +115,17 @@ func (repo *SQLiteServiceRepository) SaveTaskRuns(ctx context.Context, taskRuns 
 			return nil, fmt.Errorf("conversion failed for task run %s: %w", taskRun.ID, convErr)
 		}
 
-		_, execErr := tx.NamedExecContext(ctx, upsertTaskRunSQL, taskRunDB)
+		_, execErr := tx.ExecContext(ctx, upsertTaskRunSQL,
+			taskRunDB.ID,
+			taskRunDB.JobID,
+			taskRunDB.Name,
+			taskRunDB.Description,
+			taskRunDB.TaskName,
+			taskRunDB.State,
+			taskRunDB.StartDate,
+			taskRunDB.EndDate,
+			taskRunDB.DetailsJSON,
+		)
 		if execErr != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("failed to upsert task run %s in transaction: %w", taskRunDB.ID, execErr)
@@ -158,7 +148,7 @@ func (repo *SQLiteServiceRepository) SaveTaskRuns(ctx context.Context, taskRuns 
 	return savedTaskRuns, nil
 }
 
-func (repo *SQLiteServiceRepository) GetTaskRun(ctx context.Context, taskRunID uuid.UUID) (*domain.TaskRun, error) {
+func (repo *PostgresServiceRepository) GetTaskRun(ctx context.Context, taskRunID uuid.UUID) (*domain.TaskRun, error) {
 	var taskRunDB TaskRunDB
 	err := repo.DB.GetContext(ctx, &taskRunDB, selectTaskRunByIDSQL, taskRunID)
 	if err != nil {
@@ -171,7 +161,7 @@ func (repo *SQLiteServiceRepository) GetTaskRun(ctx context.Context, taskRunID u
 	return taskRunDB.ToDomainTaskRun()
 }
 
-func (repo *SQLiteServiceRepository) GetTaskRuns(ctx context.Context, jobID uuid.UUID) ([]domain.TaskRun, error) {
+func (repo *PostgresServiceRepository) GetTaskRuns(ctx context.Context, jobID uuid.UUID) ([]domain.TaskRun, error) {
 	// Fetch data into a slice of database models
 	var taskRunDBs []TaskRunDB
 	err := repo.DB.SelectContext(ctx, &taskRunDBs, selectAllTaskRunsSQL, jobID)
@@ -192,10 +182,10 @@ func (repo *SQLiteServiceRepository) GetTaskRuns(ctx context.Context, jobID uuid
 	return domainTaskRuns, nil
 }
 
-func (repo *SQLiteServiceRepository) GetAllTaskRuns(ctx context.Context, cursor *domain.CursorInput) (*domain.CursorOutput[domain.TaskRun], error) {
+func (repo *PostgresServiceRepository) GetAllTaskRuns(ctx context.Context, cursor *domain.CursorInput) (*domain.CursorOutput[domain.TaskRun], error) {
 	pq := &db.PaginationQuery{
-		BaseQuery:     selectPaginationTaskRunSQL,
-		AllowedFields: []string{"id", "job_id", "task_name", "state", "start_date", "end_date"},
+		BaseQuery:     queries.SelectPaginationTaskRunSQL,
+		AllowedFields: queries.TaskRunPaginationAllowedFields,
 	}
 
 	dbOutput, err := db.Paginate[TaskRunDB](ctx, repo.DB, pq, cursor)

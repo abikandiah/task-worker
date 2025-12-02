@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/abikandiah/task-worker/internal/platform/logging"
 	"github.com/abikandiah/task-worker/internal/platform/server"
 	"github.com/abikandiah/task-worker/internal/repository"
+	"github.com/abikandiah/task-worker/internal/repository/postgres"
 	"github.com/abikandiah/task-worker/internal/repository/sqlite3"
 	"github.com/abikandiah/task-worker/internal/service"
 	"github.com/abikandiah/task-worker/internal/task"
@@ -47,12 +49,17 @@ func NewApplication(deps *AppDependencies) *Application {
 		panic(err.Error())
 	}
 
-	migrationsDir := "./migrations/sqlite3"
+	migrationsDir := filepath.Join("./migrations", db.Driver())
 	if err := db.RunMigrations(migrationsDir); err != nil {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
-	app.Repository = sqlite3.NewSQLiteServiceRepository(db.DB)
+	switch db.Driver() {
+	case "sqlite3":
+		app.Repository = sqlite3.NewSQLiteServiceRepository(db.DB)
+	case "postgres":
+		app.Repository = postgres.NewPostgresServiceRepository(db.DB)
+	}
 
 	taskFactory := factory.NewTaskFactory()
 	app.TaskFactory = taskFactory

@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16
+    container_name: task_worker_postgres_db
+    restart: always
+    
+    environment:
+      POSTGRES_USER: ${APP_DATABASE_USER}
+      POSTGRES_PASSWORD: ${APP_DATABASE_PASSWORD}
+      POSTGRES_DB: ${APP_DATABASE_DB_NAME}
+      
+    ports:
+      - "5432:${APP_DATABASE_PORT}"
+      
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -30,11 +30,15 @@ func Load() (*Config, error) {
 	bindEnvironmentVariables(v)
 
 	// Configure viper
-	v.SetConfigName("config")
-	v.SetConfigType("yaml")
-	v.AddConfigPath(".")        // Look in current directory
-	v.AddConfigPath("./config") // Look in config directory
-	v.AddConfigPath("~/.config/task-worker")
+	if *ConfigPath != "" {
+		v.SetConfigFile(*ConfigPath)
+	} else {
+		v.SetConfigName("config")
+		v.SetConfigType("yaml")
+		v.AddConfigPath(".")        // Look in current directory
+		v.AddConfigPath("./config") // Look in config directory
+		v.AddConfigPath("~/.config/task-worker")
+	}
 
 	// Read config file (optional - won't error if not found)
 	if err := v.ReadInConfig(); err != nil {

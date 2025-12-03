@@ -1,4 +1,4 @@
 #!/bin/bash
 
 go mod tidy
-go run ./cmd/api
+go run ./cmd/api $@

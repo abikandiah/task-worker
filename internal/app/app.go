@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -28,6 +27,7 @@ type AppDependencies struct {
 	Repository  repository.ServiceRepository
 	TaskFactory *factory.TaskFactory
 	Logger      *slog.Logger
+	db          *db.DB
 }
 
 // internal/app/app.go
@@ -49,17 +49,8 @@ func NewApplication(deps *AppDependencies) *Application {
 		panic(err.Error())
 	}
 
-	migrationsDir := filepath.Join("./migrations", db.Driver())
-	if err := db.RunMigrations(migrationsDir); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
-	}
-
-	switch db.Driver() {
-	case "sqlite3":
-		app.Repository = sqlite3.NewSQLiteServiceRepository(db.DB)
-	case "postgres":
-		app.Repository = postgres.NewPostgresServiceRepository(db.DB)
-	}
+	app.db = db
+	app.Repository = initServiceRepository(app.db)
 
 	taskFactory := factory.NewTaskFactory()
 	app.TaskFactory = taskFactory
@@ -79,6 +70,17 @@ func NewApplication(deps *AppDependencies) *Application {
 func (app *Application) Run() {
 	app.startService()
 	app.startHttpServer()
+}
+
+func (app *Application) RunMigrations() {
+	slog.Info("running migrations...")
+
+	migrationsDir := filepath.Join("./migrations", app.db.Driver())
+	if err := app.db.RunMigrations(migrationsDir); err != nil {
+		slog.Error("failed to run migrations", slog.Any("error", err))
+	}
+	slog.Info("exiting")
+	os.Exit(0)
 }
 
 func (app *Application) startService() {
@@ -121,6 +123,15 @@ func (app *Application) startHttpServer() {
 func (app *Application) Close() {
 	app.JobService.Close(context.Background())
 	app.Repository.Close()
+}
+
+func initServiceRepository(db *db.DB) repository.ServiceRepository {
+	switch db.Driver() {
+	case "postgres":
+		return postgres.NewPostgresServiceRepository(db.DB)
+	default:
+		return sqlite3.NewSQLiteServiceRepository(db.DB)
+	}
 }
 
 func registerDepdenencies(f *factory.TaskFactory, deps *AppDependencies) {

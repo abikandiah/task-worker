@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"fmt"
 
 	"github.com/abikandiah/task-worker/internal/platform/db"
@@ -11,6 +12,17 @@ import (
 
 // EnvPrefix is the mandatory prefix for all environment variables (e.g., APP_SERVER_PORT)
 const EnvPrefix = "APP"
+
+// Application flags
+var (
+	MigrateFlag *bool
+	ConfigPath  *string
+)
+
+func init() {
+	MigrateFlag = flag.Bool("migrate", false, "Run database migrations and exit.")
+	ConfigPath = flag.String("config", "", "Path to the configuration file (e.g., config.yaml)")
+}
 
 type Config struct {
 	Environment string          `mapstructure:"environment"`

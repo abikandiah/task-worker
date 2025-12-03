@@ -37,9 +37,8 @@ build_and_sync_ui() {
 	echo "Finished building UI"
 
 	cd ../task-worker
-	mkdir -p ./build
-	echo "Synchronizing UI assets to ./build"
-	rsync -av --delete "../task-executor-ui/dist" "./build"
+	echo "Synchronizing UI assets to ./dist"
+	rsync -av --delete "../task-executor-ui/dist/" "./dist"
 }
 
 if build_and_sync_ui; then

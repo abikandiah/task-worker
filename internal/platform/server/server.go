@@ -109,6 +109,9 @@ func (server *Server) setupRoutes() {
 		r.Route("/jobs", server.setupJobRoutes())
 		r.Route("/jobs/configs/", server.setupJobConfigRoutes())
 	})
+
+	// Catch-all for UI and static files (lowest precedence)
+	server.router.Route("/", server.setupStaticFileServer())
 }
 
 func (server *Server) printRoutes(prefix string) {

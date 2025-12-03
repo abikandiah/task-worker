@@ -78,6 +78,7 @@ func (app *Application) RunMigrations() {
 	migrationsDir := filepath.Join("./migrations", app.db.Driver())
 	if err := app.db.RunMigrations(migrationsDir); err != nil {
 		slog.Error("failed to run migrations", slog.Any("error", err))
+		os.Exit(1)
 	}
 	slog.Info("exiting")
 	os.Exit(0)
